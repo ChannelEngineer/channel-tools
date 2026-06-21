@@ -10,7 +10,8 @@ Grounded in the Chanimal Channel Kit — a production-proven channel framework f
 ```
 channel-tools/
 ├── mcp-servers/
-│   └── channel-mgmt/      # Partner program design, deal registration, lead classification, policies, onboarding
+│   ├── channel-mgmt/      # Partner program design, deal registration, lead classification, policies, onboarding
+│   └── partner-portal/     # Partner locator, MDF requests, NFR quiz, orientation, deal management
 ├── micro-apps/             # Frontend UIs and dashboards
 ├── scripts/                # Automation helpers
 └── docs/                   # Setup and deployment guides
@@ -25,6 +26,11 @@ channel-tools/
 | | `classify_lead` | A/B/C lead classification with SLA enforcement and auto-reassign |
 | | `generate_policy` | 6 policy documents: lead policy, deal registration, MDF, NFR, program overview, onboarding |
 | | `onboard_partner` | Full partner onboarding plan (Weeks 1-4 + 90-day check-in) |
+| **partner-portal** | `find_partners` | Search partner locator by zip/region, prioritized by tier |
+| | `request_mdf` | Submit MDF requests with policy guidance and reimbursement calc |
+| | `nfr_quiz` | Generate and grade the 10-question NFR quiz for free software |
+| | `portal_orientation` | Partner getting-started checklist covering setup, training, locator |
+| | `manage_deals` | List, renew, close, and summarize deal registrations |
 
 ## Quick Start
 
@@ -55,7 +61,6 @@ mcp_servers:
 
 ## Roadmap
 
-- [ ] **partner-portal** MCP server (partner locator, MDF requests, NFR quiz, self-service)
 - [ ] **channel-analytics** MCP server (program health, partner performance, pipeline analysis)
 - [ ] Micro-app dashboards
 - [ ] Docker deployment
