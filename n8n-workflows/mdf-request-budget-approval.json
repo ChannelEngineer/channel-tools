@@ -1,0 +1,679 @@
+{
+  "name": "MDF Request - Budget Check & Approval Chain",
+  "nodes": [
+    {
+      "id": "webhook-mdf",
+      "name": "Webhook - MDF Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "path": "mdf-request",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "mdf-request-hook"
+    },
+    {
+      "id": "format-mdf",
+      "name": "Format MDF Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        450,
+        300
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName }}"
+            },
+            {
+              "name": "partnerTier",
+              "value": "={{ $json.body.partnerTier }}"
+            },
+            {
+              "name": "requestType",
+              "value": "={{ $json.body.requestType }}"
+            },
+            {
+              "name": "amount",
+              "value": "={{ $json.body.amount }}"
+            },
+            {
+              "name": "campaignDescription",
+              "value": "={{ $json.body.campaignDescription }}"
+            },
+            {
+              "name": "expectedStartDate",
+              "value": "={{ $json.body.expectedStartDate }}"
+            },
+            {
+              "name": "expectedEndDate",
+              "value": "={{ $json.body.expectedEndDate }}"
+            },
+            {
+              "name": "submittedAt",
+              "value": "={{ $json.body.submittedAt || Date.now() }}"
+            },
+            {
+              "name": "mdfId",
+              "value": "={{ 'MDF-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase() }}"
+            },
+            {
+              "name": "status",
+              "value": "Pending Budget Check"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "calc-quarter-budget",
+      "name": "Check Quarterly Budget",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        650,
+        300
+      ],
+      "parameters": {
+        "url": "={{ $env['CHANNEL_MCP_URL'] || 'http://localhost:8000' }}/tools/call",
+        "authentication": "none",
+        "sendBody": true,
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tool",
+              "value": "request_mdf"
+            },
+            {
+              "name": "arguments.partnerName",
+              "value": "={{ $json.partnerName }}"
+            },
+            {
+              "name": "arguments.amount",
+              "value": "={{ $json.amount }}"
+            },
+            {
+              "name": "arguments.mdfId",
+              "value": "={{ $json.mdfId }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "budget-if",
+      "name": "Budget Sufficient Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.remainingBudget || 0 }}",
+              "operation": "largerEqual",
+              "value2": "={{ parseInt($json.amount) }}"
+            }
+          ]
+        },
+        "combinator": "and",
+        "options": {}
+      }
+    },
+    {
+      "id": "tier-check",
+      "name": "Tier Auto-Approve Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.partnerTier }}",
+              "operation": "isEqual",
+              "value2": "Platinum"
+            }
+          ],
+          "number": [
+            {
+              "value1": "={{ parseInt($json.amount) }}",
+              "operation": "smallerEqual",
+              "value2": 10000
+            }
+          ]
+        },
+        "combinator": "and",
+        "options": {}
+      }
+    },
+    {
+      "id": "auto-approve-mdf",
+      "name": "Auto-Approve MDF",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1250,
+        100
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Approved"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-mdf-approved",
+      "name": "Slack - MDF Approved",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        1450,
+        100
+      ],
+      "parameters": {
+        "channel": "C_YOUR_MDF_CHANNEL",
+        "text": "=:moneybag: MDF Auto-Approved\\n*Partner:* {{ $json.partnerName }} ({{ $json.partnerTier }})\\n*Amount:* \\${{ $json.amount }}\\n*Type:* {{ $json.requestType }}\\n*ID:* {{ $json.mdfId }}\\n*Used Budget:* \\${{ $json.usedBudget || 'N/A' }}\\n*Remaining:* \\${{ $json.remainingBudget || 'N/A' }}",
+        "username": "MDF Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-mdf-approved",
+      "name": "Email - MDF Approved",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        250
+      ],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail || $json.body.partnerEmail }}",
+        "subject": "=MDF Request Approved - {{ $json.mdfId }}",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nYour MDF request has been *approved*!\\n\\nRequest ID: {{ $json.mdfId }}\\nAmount: \\${{ $json.amount }}\\nCampaign: {{ $json.campaignDescription || $json.body.campaignDescription }}\\nPeriod: {{ $json.expectedStartDate || $json.body.expectedStartDate }} to {{ $json.expectedEndDate || $json.body.expectedEndDate }}\\n\\nFunds must be used within 90 days. Submit proof of execution and receipts for reimbursement (50% reimbursement rate applies).\\n\\nBest,\\nChannel Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "sheets-mdf-approved",
+      "name": "Log - MDF Approved",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1450,
+        400
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "MDFRequests",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "MDF ID": "={{ $json.mdfId }}",
+            "Partner": "={{ $json.partnerName }}",
+            "Tier": "={{ $json.partnerTier }}",
+            "Amount": "={{ $json.amount }}",
+            "Type": "={{ $json.requestType || $json.body.requestType }}",
+            "Status": "Approved",
+            "Approval Method": "Auto",
+            "Submitted": "={{ $json.submittedAt }}",
+            "Approved At": "={{ Date.now() }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "mdf-response-approved",
+      "name": "Response - Approved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        550
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"approved\",\"mdfId\":{{ $json.mdfId }},\"message\":\"MDF request approved\"}"
+      }
+    },
+    {
+      "id": "manual-review-mdf",
+      "name": "Manual Review MDF",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1250,
+        350
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Pending Review"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-mdf-review",
+      "name": "Slack - MDF Needs Review",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        1450,
+        350
+      ],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGERS_CHANNEL",
+        "text": "=:mag: MDF Requires Review\\n*Partner:* {{ $json.partnerName }} ({{ $json.partnerTier }})\\n*Amount:* \\${{ $json.amount }}\\n*Budget Remaining:* \\${{ $json.remainingBudget || 'N/A' }}\\n*ID:* {{ $json.mdfId }}\\n*Reason:* {{ $json.reviewReason || 'Tier or amount exceeds auto-approve threshold' }}\\n\\nReview at: https://n8n.navitools.net/workflow/mdf-review",
+        "username": "MDF Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-mdf-pending",
+      "name": "Email - MDF Pending",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        500
+      ],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail || $json.body.partnerEmail }}",
+        "subject": "=MDF Request Under Review - {{ $json.mdfId }}",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nYour MDF request has been received and is under review.\\n\\nRequest ID: {{ $json.mdfId }}\\nAmount: \\${{ $json.amount }}\\n\\nOur channel team will review within 5 business days.\\n\\nBest,\\nChannel Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "sheets-mdf-pending",
+      "name": "Log - MDF Pending",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1450,
+        650
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "MDFRequests",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "MDF ID": "={{ $json.mdfId }}",
+            "Partner": "={{ $json.partnerName }}",
+            "Tier": "={{ $json.partnerTier }}",
+            "Amount": "={{ $json.amount }}",
+            "Type": "={{ $json.requestType || $json.body.requestType }}",
+            "Status": "Pending Review",
+            "Approval Method": "Manual",
+            "Submitted": "={{ $json.submittedAt }}",
+            "Budget Remaining": "={{ $json.remainingBudget || 'N/A' }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "mdf-response-pending",
+      "name": "Response - Pending",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        800
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"pending_review\",\"mdfId\":{{ $json.mdfId }},\"message\":\"MDF request under manual review\"}"
+      }
+    },
+    {
+      "id": "insufficient-budget",
+      "name": "Insufficient Budget Handler",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1050,
+        450
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Rejected - Insufficient Budget"
+            },
+            {
+              "name": "rejectionReason",
+              "value": "={{ $json.rejectionReason || 'Insufficient quarterly MDF budget remaining' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-mdf-rejected",
+      "name": "Slack - MDF Rejected",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        1250,
+        550
+      ],
+      "parameters": {
+        "channel": "C_YOUR_MDF_CHANNEL",
+        "text": "=:no_entry: MDF Rejected - Budget\\n*Partner:* {{ $json.partnerName }}\\n*Amount:* \\${{ $json.amount }}\\n*ID:* {{ $json.mdfId }}\\n*Reason:* {{ $json.rejectionReason }}",
+        "username": "MDF Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-mdf-rejected",
+      "name": "Email - MDF Rejected",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        700
+      ],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail || $json.body.partnerEmail }}",
+        "subject": "=MDF Request Update - {{ $json.mdfId }}",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nUnfortunately, your MDF request ({{ $json.mdfId }}) could not be approved at this time due to: {{ $json.rejectionReason }}\\n\\nPlease contact your channel manager to discuss alternative options or timing.\\n\\nBest,\\nChannel Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "mdf-response-rejected",
+      "name": "Response - Rejected",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        850
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"rejected\",\"mdfId\":{{ $json.mdfId }},\"reason\":{{ $json.rejectionReason }}}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - MDF Request": {
+      "main": [
+        [
+          {
+            "node": "Format MDF Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format MDF Data": {
+      "main": [
+        [
+          {
+            "node": "Check Quarterly Budget",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Quarterly Budget": {
+      "main": [
+        [
+          {
+            "node": "Budget Sufficient Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Budget Sufficient Check": {
+      "main": [
+        [
+          {
+            "node": "Tier Auto-Approve Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insufficient Budget Handler",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Tier Auto-Approve Check": {
+      "main": [
+        [
+          {
+            "node": "Auto-Approve MDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Manual Review MDF",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Auto-Approve MDF": {
+      "main": [
+        [
+          {
+            "node": "Slack - MDF Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - MDF Approved": {
+      "main": [
+        [
+          {
+            "node": "Email - MDF Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - MDF Approved": {
+      "main": [
+        [
+          {
+            "node": "Log - MDF Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log - MDF Approved": {
+      "main": [
+        [
+          {
+            "node": "Response - Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Review MDF": {
+      "main": [
+        [
+          {
+            "node": "Slack - MDF Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - MDF Needs Review": {
+      "main": [
+        [
+          {
+            "node": "Email - MDF Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - MDF Pending": {
+      "main": [
+        [
+          {
+            "node": "Log - MDF Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log - MDF Pending": {
+      "main": [
+        [
+          {
+            "node": "Response - Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insufficient Budget Handler": {
+      "main": [
+        [
+          {
+            "node": "Slack - MDF Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - MDF Rejected": {
+      "main": [
+        [
+          {
+            "node": "Email - MDF Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - MDF Rejected": {
+      "main": [
+        [
+          {
+            "node": "Response - Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Denver",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "tags": [
+    {
+      "name": "channel"
+    },
+    {
+      "name": "mdf"
+    },
+    {
+      "name": "partner"
+    }
+  ]
+}

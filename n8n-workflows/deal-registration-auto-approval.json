@@ -1,0 +1,456 @@
+{
+  "name": "Partner Deal Registration - Auto-Approval",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Webhook - Deal Registration",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "path": "deal-registration",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "deal-registration-hook"
+    },
+    {
+      "id": "set-reg-data",
+      "name": "Format Registration Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        450,
+        300
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.body.partnerEmail }}"
+            },
+            {
+              "name": "partnerTier",
+              "value": "={{ $json.body.partnerTier }}"
+            },
+            {
+              "name": "endCustomer",
+              "value": "={{ $json.body.endCustomer }}"
+            },
+            {
+              "name": "dealValue",
+              "value": "={{ $json.body.dealValue }}"
+            },
+            {
+              "name": "product",
+              "value": "={{ $json.body.product }}"
+            },
+            {
+              "name": "dealDescription",
+              "value": "={{ $json.body.dealDescription }}"
+            },
+            {
+              "name": "submittedAt",
+              "value": "={{ $json.body.submittedAt || Date.now() }}"
+            },
+            {
+              "name": "status",
+              "value": "Pending"
+            },
+            {
+              "name": "registrationId",
+              "value": "={{ 'REG-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase() }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "check-duplicates",
+      "name": "Check Duplicate Deals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        650,
+        300
+      ],
+      "parameters": {
+        "url": "={{ $env['CHANNEL_MCP_URL'] || 'http://localhost:8000' }}/tools/call",
+        "authentication": "none",
+        "sendBody": true,
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tool",
+              "value": "register_deal"
+            },
+            {
+              "name": "arguments.endCustomer",
+              "value": "={{ $json.endCustomer }}"
+            },
+            {
+              "name": "arguments.partnerName",
+              "value": "={{ $json.partnerName }}"
+            },
+            {
+              "name": "arguments.dealValue",
+              "value": "={{ $json.dealValue }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "check-auto-approve",
+      "name": "Auto-Approval Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.partnerTier }}",
+              "operation": "isEqual",
+              "value2": "Gold"
+            },
+            {
+              "value1": "={{ $json.partnerTier }}",
+              "operation": "isEqual",
+              "value2": "Platinum"
+            }
+          ],
+          "number": [
+            {
+              "value1": "={{ parseInt($json.dealValue) }}",
+              "operation": "smallerEqual",
+              "value2": 50000
+            }
+          ]
+        },
+        "combinator": "and",
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-auto-approved",
+      "name": "Slack - Auto Approved",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        1050,
+        200
+      ],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_DEALS_CHANNEL",
+        "text": "=:white_check_mark: Deal Auto-Approved\\n*Partner:* {{ $json.partnerName }}\\n*Customer:* {{ $json.endCustomer }}\\n*Value:* \\${{ $json.dealValue }}\\n*ID:* {{ $json.registrationId }}\\n*Tier:* {{ $json.partnerTier }}",
+        "username": "Deal Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "send-auto-approve-email",
+      "name": "Send Approval Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        350
+      ],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Deal Registration Approved - {{ $json.registrationId }}",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nYour deal registration for {{ $json.endCustomer }} has been *auto-approved*.\\n\\nRegistration ID: {{ $json.registrationId }}\\nDeal Value: \\${{ $json.dealValue }}\\nProduct: {{ $json.product }}\\n\\nThis registration is valid for 90 days. You have exclusive deal rights during this period.\\n\\nBest,\\nChannel Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "log-to-sheets-auto",
+      "name": "Log to Google Sheets (Approved)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1050,
+        500
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "DealRegistrations",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Registration ID": "={{ $json.registrationId }}",
+            "Partner": "={{ $json.partnerName }}",
+            "Customer": "={{ $json.endCustomer }}",
+            "Value": "={{ $json.dealValue }}",
+            "Tier": "={{ $json.partnerTier }}",
+            "Status": "Approved",
+            "Approval Method": "Auto",
+            "Submitted At": "={{ $json.submittedAt }}",
+            "Approved At": "={{ Date.now() }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "response-auto",
+      "name": "Return Response (Approved)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        650
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"approved\",\"registrationId\":{{ $json.registrationId }},\"message\":\"Deal auto-approved\"}"
+      }
+    },
+    {
+      "id": "slack-manual-review",
+      "name": "Slack - Manual Review Required",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        1050,
+        100
+      ],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGERS_CHANNEL",
+        "text": "=:warning: Deal Requires Manual Review\\n*Partner:* {{ $json.partnerName }}\\n*Customer:* {{ $json.endCustomer }}\\n*Value:* \\${{ $json.dealValue }}\\n*ID:* {{ $json.registrationId }}\\n*Tier:* {{ $json.partnerTier }}\\n*Reason:* {{ $json.approvalNote }}\\n\\nReview at: https://n8n.navitools.net/workflow/deal-review",
+        "username": "Deal Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "send-manual-review-email",
+      "name": "Send Pending Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        250
+      ],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Deal Registration Under Review - {{ $json.registrationId }}",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nYour deal registration for {{ $json.endCustomer }} has been received and is under *manual review*.\\n\\nRegistration ID: {{ $json.registrationId }}\\nDeal Value: \\${{ $json.dealValue }}\\nProduct: {{ $json.product }}\\n\\nOur channel team will review within 24 hours. You'll receive an update via email.\\n\\nBest,\\nChannel Team",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "log-to-sheets-pending",
+      "name": "Log to Google Sheets (Pending)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1050,
+        400
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "DealRegistrations",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Registration ID": "={{ $json.registrationId }}",
+            "Partner": "={{ $json.partnerName }}",
+            "Customer": "={{ $json.endCustomer }}",
+            "Value": "={{ $json.dealValue }}",
+            "Tier": "={{ $json.partnerTier }}",
+            "Status": "Pending Review",
+            "Approval Method": "Manual",
+            "Submitted At": "={{ $json.submittedAt }}",
+            "Review Reason": "={{ $json.approvalNote || 'Deal value exceeds auto-approval threshold or tier requires review' }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "response-pending",
+      "name": "Return Response (Pending)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        550
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"pending_review\",\"registrationId\":{{ $json.registrationId }},\"message\":\"Deal under manual review\"}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Deal Registration": {
+      "main": [
+        [
+          {
+            "node": "Format Registration Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Registration Data": {
+      "main": [
+        [
+          {
+            "node": "Auto-Approval Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Approval Check": {
+      "main": [
+        [
+          {
+            "node": "Slack - Auto Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack - Manual Review Required",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Slack - Auto Approved": {
+      "main": [
+        [
+          {
+            "node": "Send Approval Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Approval Email": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheets (Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Google Sheets (Approved)": {
+      "main": [
+        [
+          {
+            "node": "Return Response (Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Manual Review Required": {
+      "main": [
+        [
+          {
+            "node": "Send Pending Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Pending Email": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheets (Pending)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Google Sheets (Pending)": {
+      "main": [
+        [
+          {
+            "node": "Return Response (Pending)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Denver",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "tags": [
+    {
+      "name": "channel"
+    },
+    {
+      "name": "deal-registration"
+    },
+    {
+      "name": "partner"
+    }
+  ]
+}
