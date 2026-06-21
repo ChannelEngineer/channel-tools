@@ -1,46 +1,43 @@
 # Channel Tools
 
-MCP-driven tools for **lead generation, outreach, enrichment, and partner/channel management.**
+MCP-driven tools for **partner program management, deal registration, and channel operations.**
+Grounded in the Chanimal Channel Kit — a production-proven channel framework from 200+ program launches.
+
+**Note:** Lead sourcing, enrichment, and outreach belong in [Resonate-IQ](https://github.com/ChannelEngineer/resonate-iq) (the AI communications platform). This repo focuses on the partner ecosystem.
 
 ## Architecture
 
 ```
 channel-tools/
 ├── mcp-servers/
-│   ├── lead-gen/      # MCP: Lead sourcing & qualification
-│   ├── enrichment/    # MCP: Contact & company data enrichment
-│   ├── outreach/      # MCP: Sequence & campaign management
-│   └── channel-mgmt/  # MCP: Partner/channel management
-├── micro-apps/        # Frontend UIs and dashboards
-├── docs/              # Setup and deployment guides
-└── scripts/           # Automation helpers
+│   └── channel-mgmt/      # Partner program design, deal registration, lead classification, policies, onboarding
+├── micro-apps/             # Frontend UIs and dashboards
+├── scripts/                # Automation helpers
+└── docs/                   # Setup and deployment guides
 ```
 
 ## MCP Servers
 
-Each server exposes tools via the [Model Context Protocol](https://modelcontextprotocol.io).
-
-| Server | Tools | Integrations (planned) |
-|--------|-------|----------------------|
-| **lead-gen** | `search_companies`, `qualify_lead`, `find_contacts` | Apollo.io, Clearbit, LinkedIn |
-| **enrichment** | `enrich_contact`, `enrich_company`, `verify_email` | Hunter.io, Apollo.io, NeverBounce |
-| **outreach** | `create_sequence`, `personalize_message`, `track_campaign` | Gmail, LinkedIn, HubSpot |
-| **channel-mgmt** | `onboard_partner`, `track_deal_reg`, `evaluate_partner`, `find_partners` | CRM, PartnerStack, Impartner |
+| Server | Tools | What it does |
+|--------|-------|-------------|
+| **channel-mgmt** | `design_partner_program` | Generate 3-tier program (Authorized/Gold/Platinum) with benefits grid and margin structure |
+| | `register_deal` | Register partner deals with margin bumps, exclusivity, and rules of engagement |
+| | `classify_lead` | A/B/C lead classification with SLA enforcement and auto-reassign |
+| | `generate_policy` | 6 policy documents: lead policy, deal registration, MDF, NFR, program overview, onboarding |
+| | `onboard_partner` | Full partner onboarding plan (Weeks 1-4 + 90-day check-in) |
 
 ## Quick Start
 
 ```bash
 # Clone
-git clone https://github.com/oyster-source/channel-tools.git
+git clone https://github.com/ChannelEngineer/channel-tools.git
 cd channel-tools
 
-# Set up a server (e.g. lead-gen)
-cd mcp-servers/lead-gen
-python3 -m venv .venv
-source .venv/bin/activate
-uv pip install mcp httpx
+# Set up
+cd mcp-servers/channel-mgmt
+pip install mcp
 
-# Run the server
+# Run
 python3 src/main.py
 ```
 
@@ -50,16 +47,16 @@ Add to your `config.yaml`:
 
 ```yaml
 mcp_servers:
-  lead-gen:
+  channel-mgmt:
     command: python3
     args: ["src/main.py"]
-    cwd: "/path/to/channel-tools/mcp-servers/lead-gen"
+    cwd: "/path/to/channel-tools/mcp-servers/channel-mgmt"
 ```
 
 ## Roadmap
 
-- [ ] API integrations (Apollo, Hunter, Clearbit)
-- [ ] Webhook triggers (inbound lead capture)
+- [ ] **partner-portal** MCP server (partner locator, MDF requests, NFR quiz, self-service)
+- [ ] **channel-analytics** MCP server (program health, partner performance, pipeline analysis)
 - [ ] Micro-app dashboards
 - [ ] Docker deployment
 - [ ] CI/CD pipeline
