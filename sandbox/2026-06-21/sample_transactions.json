@@ -1,0 +1,9 @@
+[
+  {"deal": "D-001", "revenue": 150000, "is_registered": "yes", "is_new_logo": "yes"},
+  {"deal": "D-002", "revenue": 85000, "is_registered": "yes", "is_new_logo": "no"},
+  {"deal": "D-003", "revenue": 45000, "is_registered": "no", "is_new_logo": "no"},
+  {"deal": "D-004", "revenue": 120000, "is_registered": "yes", "is_new_logo": "yes"},
+  {"deal": "D-005", "revenue": 220000, "is_registered": "no", "is_new_logo": "no"},
+  {"deal": "D-006", "revenue": 65000, "is_registered": "yes", "is_new_logo": "no"},
+  {"deal": "D-007", "revenue": 320000, "is_registered": "yes", "is_new_logo": "yes"}
+]
