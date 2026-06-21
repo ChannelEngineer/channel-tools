@@ -34,7 +34,7 @@ channel-tools/
 └── docs/                     # Setup and deployment guides
 ```
 
-### MCP Servers (10 tools)
+### MCP Servers (13 tools)
 
 | Server | Tool | Function |
 |---|---|---|
@@ -43,6 +43,9 @@ channel-tools/
 | | `classify_lead` | A/B/C lead classification with SLA enforcement and auto-reassign |
 | | `generate_policy` | 6 policy documents: lead policy, deal registration, MDF, NFR, program overview, onboarding |
 | | `onboard_partner` | Full partner onboarding plan (Weeks 1-4 + 90-day check-in) |
+| | `design_distribution_model` | 10 distribution types: referral, VAR, white label, distributor, VAD, SaaS distributor, consultant, rep firm |
+| | `calculate_channel_roi` | Reseller lifetime value, recruitment ROI, promotional budget returns |
+| | `forecast_channel_sales` | 12-month channel sales forecast with ramp-up and cash flow projections |
 | **partner-portal** | `find_partners` | Search partner locator by zip/region, prioritized by tier and certification |
 | | `request_mdf` | Submit MDF requests with policy guidance and reimbursement calculation |
 | | `nfr_quiz` | Generate and grade the 10-question NFR quiz for free software access |
@@ -74,15 +77,16 @@ mcp_servers:
 
 ## Domain Knowledge
 
-The Chanimal Channel Kit (75 documents) covers every aspect of channel program execution:
+The Chanimal Channel Kit (106 documents — 2026 edition) covers every aspect of channel program execution:
 
-- **Program design** — Tier structures, level grids, competitive analysis templates
-- **Recruiting** — Phone scripts, email sequences, application forms, qualification criteria
-- **Onboarding** — Orientation checklists, portal setup, training paths, NFR enablement
-- **Policy** — Deal registration, lead distribution, MDF/co-op, NFR, pricing guidelines
-- **Marketing** — Product introduction templates, SEO guides, plan of action templates
-- **Sales enablement** — Demo scripts, competitive matrix, presentations, ROI analysis
-- **Operations** — Partner locator, portal content, webinar guidelines, order processing
+- **Program design** — Tier structures, level grids, competitive analysis templates, **CRM margin comparisons** (23 vendor programs analyzed)
+- **Recruiting** — Phone scripts, email sequences, application forms, qualification criteria, **affiliate/referral templates**
+- **Onboarding** — Orientation checklists, portal setup, training paths, NFR enablement, **referral approval emails**
+- **Policy** — Deal registration, lead distribution, MDF/co-op, NFR, pricing guidelines, **referral program terms**
+- **Marketing** — Product introduction templates, SEO guides, plan of action templates, 25/50/100 word product descriptions
+- **Sales enablement** — Demo scripts, competitive matrix, presentations, ROI analysis, **channel ROI calculator**
+- **Operations** — Partner locator, portal content, webinar guidelines, order processing, **distribution models**, **sales forecasting**
+- **Channel strategy** — Direct vs indirect analysis, **channel ROI presentation** (712x ROI case study), **distribution model decision framework**
 
 ## Roadmap
 

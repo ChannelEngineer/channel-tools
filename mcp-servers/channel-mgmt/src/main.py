@@ -18,6 +18,112 @@ server = Server("channel-mgmt")
 # ── Knowledge Base ──────────────────────────────────────────────────────────
 # Encoded from the Chanimal Channel Kit docs
 
+DISTRIBUTION_MODELS = {
+    "referral_affiliate": {
+        "name": "Referral / Affiliate",
+        "margin_pct": 10,
+        "form_referral_margin_pct": 15,
+        "description": "Sends links or completes a referral form. No training, no support, no closing. Lightest touch.",
+        "closing": False,
+        "training": False,
+        "support": "None",
+        "best_for": "Partners who want a simple commission without any engagement beyond sending referrals.",
+    },
+    "authorized_var": {
+        "name": "Authorized VAR",
+        "margin_pct": 20,
+        "description": "Closes deals, basic training, no formal quota or certification. Vendor sends leads.",
+        "closing": True,
+        "training": "Basic",
+        "support": "1st line",
+        "certification_required": False,
+        "best_for": "Entry-level resellers who want to start selling with minimal commitment.",
+    },
+    "gold_var": {
+        "name": "Gold VAR",
+        "margin_pct": 30,
+        "description": "Closes deals, 1st-level support, certification required, quota required (~$50k). Plan of action required.",
+        "closing": True,
+        "training": "1st level + certification",
+        "support": "1st line + vendor assistance",
+        "certification_required": True,
+        "quota_required": True,
+        "min_quota": 50000,
+        "best_for": "Established resellers with proven sales capability.",
+    },
+    "platinum_var": {
+        "name": "Platinum VAR",
+        "margin_pct": 40,
+        "description": "Closes deals, 1st & 2nd level support/integration, dual certification, higher quota (~$200k).",
+        "closing": True,
+        "training": "2nd level + dual certification",
+        "support": "1st & 2nd line, integration",
+        "certification_required": True,
+        "quota_required": True,
+        "min_quota": 200000,
+        "best_for": "Top-tier partners providing full-service solutions including implementation.",
+    },
+    "white_label": {
+        "name": "White Label / OEM",
+        "margin_pct": 50,
+        "description": "ALL support, ALL training, everything. Heavy quota with performance clause (~$500k). Partner rebrands the product as their own.",
+        "closing": True,
+        "training": "Full",
+        "support": "Full (all levels)",
+        "certification_required": True,
+        "quota_required": True,
+        "min_quota": 500000,
+        "best_for": "Large partners who want to fully own the customer relationship and brand the product.",
+    },
+    "distributor_wholesale": {
+        "name": "Distributor (Wholesale)",
+        "margin_pct": 5,
+        "range": "3-7%",
+        "description": "Fulfillment, financing, logistics, returns. Can help recruit (typically charges for campaigns). Limited value for SaaS — no physical inventory.",
+        "services": "Fulfillment, financing, logistics, returns, assisted recruitment",
+        "best_for": "Hardware vendors needing logistics. Not ideal for SaaS.",
+    },
+    "vad_country_manager": {
+        "name": "VAD — Value Added Distributor",
+        "margin_pct": 50,
+        "description": "Signs up, trains, and manages everything — including re-doing collateral in another language. Pays their partners normal margins, keeps the difference. Big quotas with performance clauses.",
+        "services": "Full: recruitment, training, localization, management",
+        "best_for": "Entering international markets where you need a local operator who owns the full channel.",
+    },
+    "saas_distributor": {
+        "name": "SaaS Distributor (SaaSMAX)",
+        "margin_pct": 10,
+        "description": "Discount consulting, help with partner database, recruiting assistance, marketplace access (customers & resellers).",
+        "services": "Consulting, database, recruiting, marketplace",
+        "best_for": "SaaS companies needing a partner marketplace and recruiting assistance without building from scratch.",
+    },
+    "consultant": {
+        "name": "Consultant / Bounty",
+        "margin_pct": 5,
+        "range": "5-10%",
+        "description": "Only refers channel partners, not end customers. Bounty (one-time) or percentage (1st year, ongoing, or first-year only). Common: 10% first year, 5% lifetime.",
+        "services": "Referral only",
+        "best_for": "Industry consultants who can recommend your product or introduce you to resellers.",
+    },
+    "rep_firm": {
+        "name": "Rep Firm / Manufacturers Rep",
+        "margin_pct": 5,
+        "description": "Sell-in representation. 5% sell-in commission plus approved expenses. Rep firms represent multiple vendors and sell to the channel.",
+        "services": "Sell-in representation, relationship management",
+        "best_for": "Expanding geographic reach through established rep networks.",
+    },
+}
+
+SALES_FORECAST_DEFAULTS = {
+    "avg_deal_size_annual": 1800,
+    "avg_deals_per_reseller_first_year": 6,
+    "sales_cycle_months": 1,
+    "ramp_up_months": 1,
+    "expected_first_sale_month": 2,
+    "pct_resellers_active": 0.7,
+    "avg_reseller_tenure_years": 5,
+}
+
 PARTNER_TIERS = {
     "authorized": {
         "name": "Authorized",
@@ -259,6 +365,7 @@ async def list_tools() -> list[types.Tool]:
                         "enum": [
                             "program_overview", "lead_policy", "deal_registration",
                             "mdf_policy", "nfr_policy", "onboarding_checklist",
+                            "referral_program",
                         ],
                         "description": "Type of policy document to generate",
                     },
@@ -309,8 +416,116 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["partner_name", "partner_tier", "company_name"],
             },
         ),
+        types.Tool(
+            name="design_distribution_model",
+            description="Design a distribution channel model from 10 types (Referral, Authorized VAR, Gold VAR, Platinum VAR, White Label, Distributor, VAD, SaaS Distributor, Consultant, Rep Firm). Includes margin ranges, services, and strategic recommendations.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "company_name": {
+                        "type": "string",
+                        "description": "Your company name",
+                    },
+                    "product_type": {
+                        "type": "string",
+                        "enum": ["saas", "hardware", "services", "software"],
+                        "description": "Type of product being sold through the channel",
+                    },
+                    "include_models": {
+                        "type": "array",
+                        "items": {"type": "string", "enum": [
+                            "referral_affiliate", "authorized_var", "gold_var", "platinum_var",
+                            "white_label", "distributor_wholesale", "vad_country_manager",
+                            "saas_distributor", "consultant", "rep_firm"
+                        ]},
+                        "description": "Which distribution models to include (default: referral + authorized + gold + platinum)",
+                    },
+                    "international": {
+                        "type": "boolean",
+                        "description": "Is this for an international market? (impacts VAD and distributor recommendations)",
+                    },
+                    "maturity": {
+                        "type": "string",
+                        "enum": ["startup", "growing", "established"],
+                        "description": "Company maturity — impacts program design recommendations",
+                    },
+                },
+                "required": ["company_name", "product_type"],
+            },
+        ),
+        types.Tool(
+            name="calculate_channel_roi",
+            description="Calculate channel ROI based on the Chanimal framework. Shows reseller lifetime value, recruitment ROI, and promotional budget returns. Uses real spreadsheet logic from the Chanimal Channel ROI presentation.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "avg_deal_size_annual": {
+                        "type": "number",
+                        "description": "Average annual deal size per customer (e.g., $1,200)",
+                    },
+                    "avg_customer_tenure_years": {
+                        "type": "number",
+                        "description": "Average years a customer remains (SaaS: ~3 years)",
+                    },
+                    "avg_deals_per_reseller_per_year": {
+                        "type": "number",
+                        "description": "Average number of deals per reseller per year",
+                    },
+                    "avg_reseller_tenure_years": {
+                        "type": "number",
+                        "description": "Average years a reseller remains active",
+                    },
+                    "recruitment_budget": {
+                        "type": "number",
+                        "description": "Total budget for recruitment activities ($)",
+                    },
+                    "expected_resellers_recruited": {
+                        "type": "integer",
+                        "description": "How many resellers you expect to recruit with this budget",
+                    },
+                },
+                "required": ["avg_deal_size_annual", "avg_customer_tenure_years", "avg_deals_per_reseller_per_year"],
+            },
+        ),
+        types.Tool(
+            name="forecast_channel_sales",
+            description="Generate a 12-month channel sales forecast based on the Chanimal reseller recruiting model. Includes monthly revenue projections, ramp-up timelines, and cash flow expectations.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "monthly_recruiting_target": {
+                        "type": "integer",
+                        "description": "Number of resellers to recruit per month (default: 10)",
+                    },
+                    "avg_deal_size": {
+                        "type": "number",
+                        "description": "Average annual deal size (default: $1,800)",
+                    },
+                    "avg_deals_per_reseller_first_year": {
+                        "type": "integer",
+                        "description": "Avg deals per reseller in first year (default: 6)",
+                    },
+                    "sales_cycle_months": {
+                        "type": "integer",
+                        "description": "Sales cycle length in months (default: 1)",
+                    },
+                    "ramp_up_months": {
+                        "type": "integer",
+                        "description": "Months to ramp up a new reseller (default: 1)",
+                    },
+                    "pct_active": {
+                        "type": "number",
+                        "description": "Percentage of recruited resellers who become active (default: 0.7)",
+                    },
+                    "months_to_project": {
+                        "type": "integer",
+                        "description": "Number of months to forecast (default: 12)",
+                    },
+                },
+                "required": [],
+            },
+        ),
     ]
-
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     if name == "design_partner_program":
@@ -323,6 +538,12 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
         return _handle_generate_policy(arguments)
     elif name == "onboard_partner":
         return _handle_onboard_partner(arguments)
+    elif name == "design_distribution_model":
+        return _handle_distribution_model(arguments)
+    elif name == "calculate_channel_roi":
+        return _handle_channel_roi(arguments)
+    elif name == "forecast_channel_sales":
+        return _handle_sales_forecast(arguments)
     raise ValueError(f"Unknown tool: {name}")
 
 # ── Tool Implementations ─────────────────────────────────────────────────────
@@ -684,6 +905,51 @@ MDF process, locator requirements, etc.). Contact the Channel Manager for access
 **Channel Manager:** {cm_name}
 **Contact:** {cm_email} | {phone}
 """,
+        "referral_program": f"""# {company} Referral / Affiliate Program
+
+## Overview
+A low-touch referral program for partners who want to earn commissions by referring
+business without the commitment of a full reseller relationship.
+
+## Margins
+
+| Referral Type | Commission |
+|---|---|
+| Affiliate Link | 10% of subscription payments |
+| Form-Based Referral | 15% of first-year subscription |
+
+## 90-Day Jump Start Promotion
+New affiliates receive an additional 10% margin on all referrals within the first
+90 days — up to 20% total commission.
+
+## How It Works
+1. Each affiliate receives a unique affiliate ID/link
+2. Share the link or submit referrals via the partner portal
+3. Commission is tracked via the affiliate link or referral form
+4. Payouts are processed monthly on collected revenue
+
+## Affiliate Approval Email Template
+
+Subject: {company} Affiliate Approval — please respond ASAP
+
+Thank you for joining the {company} Partner Program as an affiliate!
+
+Your affiliate ID is: https://partners.{company.lower().replace(' ','')}.com/ref=[ID]
+
+When you have a referral, submit it via the portal referral form.
+Make sure to keep your affiliate ID so we can properly credit you.
+
+## Getting Started
+1. Create a free trial account to get familiar with the product
+2. Access marketing materials, product descriptions, and demo scripts in the portal
+3. Schedule a 30-minute orientation with the Channel Manager
+4. Start sharing your affiliate link
+
+**Contact:**
+{cm_name}, Channel Manager
+{cm_email}
+{phone}
+""",
     }
 
     content = templates.get(ptype, f"Policy type '{ptype}' not found.")
@@ -751,8 +1017,212 @@ def _handle_onboard_partner(args: dict) -> list[types.TextContent]:
 - Deal Registration available{' (gold/platinum only)' if not tier_info['deal_registration'] else ''}
 - MDF available for joint promotional activities
 - Partner locator priority: {tier_info['partner_locator']}
-- Max open leads: {DEAL_REG_DEFAULTS['max_open_leads']}
+|- Max open leads: {DEAL_REG_DEFAULTS['max_open_leads']}
 """
+    return [types.TextContent(type="text", text=output)]
+
+
+def _handle_distribution_model(args: dict) -> list[types.TextContent]:
+    company = args["company_name"]
+    product_type = args["product_type"]
+    include = args.get("include_models", ["referral_affiliate", "authorized_var", "gold_var", "platinum_var"])
+    international = args.get("international", False)
+    maturity = args.get("maturity", "growing")
+
+    output = f"""# Distribution Channel Model — {company}
+
+*Product type: {product_type.upper()}* | *Maturity: {maturity}*
+{'*International: Yes*' if international else ''}
+*Generated from the Chanimal Distribution Models (2026)*
+
+## Selected Models
+
+"""
+
+    for key in include:
+        m = DISTRIBUTION_MODELS.get(key)
+        if not m:
+            continue
+        margin = m.get("range", f"{m['margin_pct']}%")
+        output += f"""### {m['name']}
+**Margin:** {margin} | **Closes deals:** {'Yes' if m.get('closing') else 'No'}
+**Training:** {m.get('training', 'None')} | **Support:** {m.get('support', 'None')}
+
+{m['description']}
+
+**Best for:** {m['best_for']}
+
+"""
+
+    output += """## Strategic Recommendations
+
+"""
+    if product_type == "saas":
+        output += """- **SaaS margin structure:** Typical margins range 10% (referral) to 50% (white label). Industry leaders pay 20-40% for resellers, 30% for affiliates.
+- **Distributors add limited value** for SaaS (no physical inventory). Consider SaaSMAX-style at 10%.
+- **Recurring revenue model:** Pay margins on subscription payments (recurring). Best practice: monthly on collected revenue.
+
+"""
+    elif product_type == "hardware":
+        output += """- **Distributors add value** for hardware (fulfillment, logistics, returns). Expect 3-7%.
+- **VADs recommended** for international — handle localization, training, on-ground management.
+- **Volume-based tiering**: higher margins for higher volumes.
+
+"""
+    if maturity == "startup":
+        output += """- **Startup:** Start direct + referral/affiliate. Keep entry simple — no certification fees.
+- Don't create barriers to join. "If a NEW program, can't do what branded products get away with."
+- Recruit 10-20 partners to stress-test your program before scaling.
+
+"""
+    elif maturity == "growing":
+        output += """- **Growing:** Add Authorized VAR tier with basic training. Expand to Gold + certification.
+- 90-day Jump Start (+10%) to incentivize early engagement.
+- Introduce Deal Registration once you have 20+ active partners.
+
+"""
+    elif maturity == "established":
+        output += """- **Established:** Full tier structure including Platinum and White Label/OEM.
+- Consider VAD for international expansion.
+- Rep firms for geographic coverage gaps.
+- Performance clauses and quarterly Plan of Action for top tiers.
+
+"""
+    if international:
+        output += """- **International:** VAD at ~50% margin handles localization, training, partner management.
+- SaaS Distributor for marketplace reach. Consultant/bounty for targeted entry.
+
+"""
+    output += f"\n*Generated: {datetime.now().isoformat()}*\n"
+    return [types.TextContent(type="text", text=output)]
+
+
+def _handle_channel_roi(args: dict) -> list[types.TextContent]:
+    deal_size = args["avg_deal_size_annual"]
+    tenure = args["avg_customer_tenure_years"]
+    deals_per_year = args["avg_deals_per_reseller_per_year"]
+    reseller_tenure = args.get("avg_reseller_tenure_years", SALES_FORECAST_DEFAULTS["avg_reseller_tenure_years"])
+    budget = args.get("recruitment_budget", 0)
+    recruited = args.get("expected_resellers_recruited", 0)
+
+    revenue_per_customer = deal_size * tenure
+    revenue_per_reseller_year = deal_size * deals_per_year
+    ltv_per_reseller = revenue_per_reseller_year * reseller_tenure
+
+    roi_multiple = 0
+    if budget > 0 and recruited > 0:
+        total_return = recruited * ltv_per_reseller
+        roi_multiple = round(total_return / budget, 1)
+
+    output = f"""# Channel ROI Calculator
+
+*Based on the Chanimal Channel ROI framework*
+
+## Reseller Value
+
+| Metric | Value |
+|---|---|
+| Avg Annual Deal Size | ${deal_size:,.2f} |
+| Avg Customer Tenure | {tenure} years |
+| Revenue Per Customer | ${revenue_per_customer:,.2f} |
+| Deals / Reseller / Year | {deals_per_year} |
+| Revenue / Reseller / Year | ${revenue_per_reseller_year:,.2f} |
+| Avg Reseller Tenure | {reseller_tenure} years |
+| **Lifetime Value / Reseller** | **${ltv_per_reseller:,.2f}** |
+"""
+
+    if budget > 0 and recruited > 0:
+        total = recruited * ltv_per_reseller
+        output += f"""
+## Recruitment ROI
+
+| Metric | Value |
+|---|---|
+| Budget | ${budget:,.2f} |
+| Resellers Recruited | {recruited} |
+| Lifetime Revenue | ${total:,.2f} |
+| **ROI Multiple** | **{roi_multiple}x** |
+
+> "The absolute HIGHEST ROI of anything a company can do with their promotional budget."
+
+### Promotional Scenarios (from Chanimal 2026):
+| Campaign | Budget | Resellers | Revenue | ROI |
+|---|---|---|---|---|
+| Direct Mail (2,000 pcs) | $8,000 | 20 | $6M | 750x |
+| Roadshow (10 cities) | $25,000 | 125 | $37.5M | 1,500x |
+| Mag Ads (4) | $24,000 | 10 | $3M | 125x |
+| Card Decks (4) | $10,000 | 4 | $1.2M | 120x |
+| **Combined** | **$67,000** | **159** | **$47.7M** | **712x** |
+"""
+    output += f"\n*Generated: {datetime.now().isoformat()}*\n"
+    return [types.TextContent(type="text", text=output)]
+
+
+def _handle_sales_forecast(args: dict) -> list[types.TextContent]:
+    monthly_recruits = args.get("monthly_recruiting_target", 10)
+    deal_size = args.get("avg_deal_size", SALES_FORECAST_DEFAULTS["avg_deal_size_annual"])
+    deals_first = args.get("avg_deals_per_reseller_first_year", SALES_FORECAST_DEFAULTS["avg_deals_per_reseller_first_year"])
+    sales_cycle = args.get("sales_cycle_months", SALES_FORECAST_DEFAULTS["sales_cycle_months"])
+    ramp_up = args.get("ramp_up_months", SALES_FORECAST_DEFAULTS["ramp_up_months"])
+    pct_active = args.get("pct_active", SALES_FORECAST_DEFAULTS["pct_resellers_active"])
+    months = args.get("months_to_project", 12)
+
+    first_sale_month = ramp_up + sales_cycle + 1
+    month_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    revenue_per_sale = deal_size / deals_first
+
+    rows = []
+    cumulative_active = 0
+
+    for m in range(1, months + 1):
+        active_this_month = int(monthly_recruits * pct_active)
+        cumulative_active += active_this_month
+
+        if m <= first_sale_month:
+            monthly_revenue = 0
+        else:
+            selling = sum(int(monthly_recruits * pct_active) for _ in range(m - first_sale_month))
+            monthly_revenue = selling * revenue_per_sale
+
+        label = month_names[(m - 1) % 12]
+        if m > 12:
+            label += f" Yr{((m-1)//12)+1}"
+        rows.append((label, monthly_recruits, cumulative_active, round(monthly_revenue, 2)))
+
+    total_rev = sum(r[3] for r in rows)
+
+    output = f"""# Channel Sales Forecast
+
+*Based on the Chanimal Reseller Recruiting Model*
+
+## Assumptions
+
+| Parameter | Value |
+|---|---|
+| Monthly Target | {monthly_recruits} |
+| Avg Deal Size | ${deal_size:,.0f} |
+| Deals/Reseller/Year | {deals_first} |
+| Sales Cycle | {sales_cycle} mo |
+| Ramp-Up | {ramp_up} mo |
+| Active % | {pct_active*100:.0f}% |
+
+## Monthly Projection
+
+| Month | Recruited | Active Cumul. | Revenue |
+|---|---|---|---|
+"""
+    for label, rec, act, rev in rows:
+        rev_str = f"${rev:,.2f}" if rev > 0 else "$0"
+        output += f"| {label} | {rec} | {act} | {rev_str} |\n"
+
+    output += f"""
+## Summary
+**Total recruited:** {monthly_recruits * months} | **Avg active:** {cumulative_active // max(months, 1)}
+**Total Revenue:** ${total_rev:,.2f}
+
+> "Complete the variables and it forecasts the revenue. Account for ramp-up, sales cycle, and when partners come on board."
+"""
+    output += f"\n*Generated: {datetime.now().isoformat()}*\n"
     return [types.TextContent(type="text", text=output)]
 
 
