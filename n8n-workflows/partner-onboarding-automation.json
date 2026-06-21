@@ -1,0 +1,698 @@
+{
+  "name": "Partner Onboarding - Automated Welcome & Milestone Follow-Up",
+  "nodes": [
+    {
+      "id": "webhook-onboarding",
+      "name": "Webhook - New Partner Onboarding",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "partner-onboarding",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "partner-onboarding-hook"
+    },
+    {
+      "id": "format-onboarding",
+      "name": "Format Onboarding Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.body.partnerEmail }}"
+            },
+            {
+              "name": "partnerTier",
+              "value": "={{ $json.body.partnerTier }}"
+            },
+            {
+              "name": "companyName",
+              "value": "={{ $json.body.companyName || $json.body.partnerName }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.body.phone || 'Not provided' }}"
+            },
+            {
+              "name": "channelManager",
+              "value": "={{ $json.body.channelManager || 'Unassigned' }}"
+            },
+            {
+              "name": "portalUrl",
+              "value": "={{ $json.body.portalUrl || 'https://partner.navitools.net' }}"
+            },
+            {
+              "name": "portalPassword",
+              "value": "={{ $json.body.portalPassword || 'Welcome123!' }}"
+            },
+            {
+              "name": "onboardingId",
+              "value": "={{ 'ONB-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase() }}"
+            },
+            {
+              "name": "status",
+              "value": "Onboarding Started"
+            },
+            {
+              "name": "onboardingStartedAt",
+              "value": "={{ Date.now() }}"
+            },
+            {
+              "name": "orientationScheduled",
+              "value": "={{ $json.body.orientationScheduled || 'Not scheduled' }}"
+            },
+            {
+              "name": "orientationCompleted",
+              "value": "={{ $json.body.orientationCompleted || 'No' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-new-partner",
+      "name": "Slack - New Partner Onboarding",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [650, 200],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_OPS_CHANNEL",
+        "text": "=:rocket: New Partner Onboarding Started\\n*Partner:* {{ $json.partnerName }}\\n*Tier:* {{ $json.partnerTier }}\\n*Email:* {{ $json.partnerEmail }}\\n*Phone:* {{ $json.phone }}\\n*Channel Manager:* {{ $json.channelManager }}\\n*Onboarding ID:* {{ $json.onboardingId }}\\n\\n*Next Steps:*\\n1. Confirm partner website has products listed\\n2. Schedule orientation meeting within 48 hours\\n3. Setup NFR license access\\n4. Schedule marketing meeting after orientation\\n\\n:calendar: *Orientation:* {{ $json.orientationScheduled }}",
+        "username": "Onboarding Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-welcome",
+      "name": "Email - Welcome & Portal Access",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [650, 350],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Welcome to the Partner Program! - {{ $json.onboardingId }}",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nWelcome to the NaviTools partner program! We're excited to have you on board as a {{ $json.partnerTier }} partner.\\n\\n=== YOUR PORTAL ACCESS ===\\n\\nPortal URL: {{ $json.portalUrl }}\\nYour Email: {{ $json.partnerEmail }}\\nTemporary Password: {{ $json.portalPassword }}\\n\\nPlease log in and change your password on first access.\\n\\n=== YOUR ONBOARDING CHECKLIST ===\\n\\n:one: Log into the partner portal and review your dashboard\\n:two: Complete the orientation meeting (scheduled: {{ $json.orientationScheduled }})\\n:three: Set up NFR (Not For Resale) software access\\n:four: Attend the marketing planning meeting\\n:five: List our products on your website\\n:six: Register your first deal (earn extra 10% Jump Start margin!)\\n\\n=== 90-DAY JUMP START PROMOTION ===\\n\\nAs a new partner, you qualify for our 90-Day Jump Start promotion:\\n- Extra 10% margin on all deals registered within your first 90 days\\n- Priority lead assignment\\n- Dedicated channel manager support\\n\\n=== NEXT STEPS ===\\n\\nYour channel manager ({{ $json.channelManager }}) will reach out within 24 hours to:\\n- Confirm your portal access\\n- Schedule your orientation meeting\\n- Discuss your first 90-day goals\\n\\nIf you have any questions, reply to this email or call {{ $json.phone }}.\\n\\nBest,\\nChannel Team\\nNaviTools Partner Program",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "sheets-log-start",
+      "name": "Log - Onboarding Started",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [650, 500],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "PartnerOnboarding",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Onboarding ID": "={{ $json.onboardingId }}",
+            "Partner Name": "={{ $json.partnerName }}",
+            "Email": "={{ $json.partnerEmail }}",
+            "Tier": "={{ $json.partnerTier }}",
+            "Channel Manager": "={{ $json.channelManager }}",
+            "Phone": "={{ $json.phone }}",
+            "Status": "Onboarding Started",
+            "Orientation Scheduled": "={{ $json.orientationScheduled }}",
+            "Orientation Completed": "={{ $json.orientationCompleted }}",
+            "Started At": "={{ $json.onboardingStartedAt }}",
+            "Last Milestone": "Welcome Sent"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "wait-3-days",
+      "name": "Wait - 3 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "parameters": {
+        "resume": "timer",
+        "amount": 3,
+        "unit": "days",
+        "options": {}
+      }
+    },
+    {
+      "id": "set-day3",
+      "name": "Set Status - Day 3 Follow-Up",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1050, 200],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Day 3 - Follow-Up Required"
+            },
+            {
+              "name": "lastMilestone",
+              "value": "Day 3 Check-In"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-day3",
+      "name": "Slack - Day 3 Reminder",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1250, 100],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_OPS_CHANNEL",
+        "text": "=:bell: Day 3 Onboarding Follow-Up\\n*Partner:* {{ $json.partnerName }}\\n*Onboarding ID:* {{ $json.onboardingId }}\\n*Tier:* {{ $json.partnerTier }}\\n*Channel Manager:* {{ $json.channelManager }}\\n\\n*Checklist:*\\n:white_square_button: Has orientation been scheduled?\\n:white_square_button: Has partner logged into portal?\\n:white_square_button: NFR license issued?\\n\\n*Action:* Contact partner to confirm progress and address any blockers.",
+        "username": "Onboarding Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-day3",
+      "name": "Email - Day 3 Check-In",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1250, 250],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Getting Started - Quick Check-In ({{ $json.onboardingId }})",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nJust checking in! We noticed it's been a few days since you joined the NaviTools partner program and we want to make sure everything is going smoothly.\\n\\n=== HAVE YOU COMPLETED THESE STEPS? ===\\n\\n:one: Logged into the partner portal?\\n:two: Scheduled your orientation meeting?\\n:three: Received your NFR software access?\\n\\nIf you need help with any of these, reply to this email or contact your channel manager ({{ $json.channelManager }}).\\n\\n=== QUICK TIP ===\\n\\nDon't forget about the 90-Day Jump Start promotion! Register your first deal within 90 days and earn an extra 10% margin. \\n\\nWe're here to help you succeed!\\n\\nBest,\\nChannel Team\\nNaviTools Partner Program",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "sheets-day3",
+      "name": "Log - Day 3 Update",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1250, 400],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "PartnerOnboarding",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Onboarding ID": "={{ $json.onboardingId }}",
+            "Status": "Day 3 - Follow-Up Required",
+            "Last Milestone": "Day 3 Check-In",
+            "Day 3 Check-In At": "={{ Date.now() }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "wait-4-days",
+      "name": "Wait - 4 More Days (Total 7)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1450, 300],
+      "parameters": {
+        "resume": "timer",
+        "amount": 4,
+        "unit": "days",
+        "options": {}
+      }
+    },
+    {
+      "id": "set-day7",
+      "name": "Set Status - Day 7 Urgency",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1650, 200],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Day 7 - Needs Attention"
+            },
+            {
+              "name": "lastMilestone",
+              "value": "Day 7 Urgency Check"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-day7",
+      "name": "Slack - Day 7 Escalation",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1850, 100],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGERS_CHANNEL",
+        "text": "=:warning: *ONBOARDING ESCALATION - Day 7*\\n\\n*Partner:* {{ $json.partnerName }}\\n*Onboarding ID:* {{ $json.onboardingId }}\\n*Tier:* {{ $json.partnerTier }}\\n*Channel Manager:* {{ $json.channelManager }}\\n\\n*Partner has been onboarding for 7 days.*\\n\\n:white_square_button: Orientation completed? {{ $json.orientationCompleted }}\\n:white_square_button: Marketing meeting scheduled?\\n:white_square_button: Product listed on partner website?\\n\\n*Required Action:* Channel manager must contact partner TODAY. If no response within 48 hours, escalate to Channel Director.\\n\\nReview: https://n8n.navitools.net/workflow/onboarding-review?partner={{ $json.onboardingId }}",
+        "username": "Onboarding Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-day7",
+      "name": "Email - Day 7 Urgent Follow-Up",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1850, 250],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Don't Forget Your Onboarding Steps! ({{ $json.onboardingId }})",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nIt's been a week since you joined the NaviTools partner program and we want to make sure you're getting the full benefit of your partnership!\\n\\n=== REMAINING ONBOARDING STEPS ===\\n\\nIf you haven't completed these yet, now is the time:\\n\\n:one: *Orientation Meeting* - Get a personalized walkthrough of the portal, product demo, and program benefits\\n:two: *NFR Setup* - Access the software for free to build your expertise\\n:three: *Marketing Meeting* - Let us help you create promotions that drive leads\\n:four: *Product Listing* - Get listed in our partner locator by featuring our products on your website\\n\\n=== WHY COMPLETE ONBOARDING? ===\\n\\n- Access to partner-exclusive leads\\n- Deal registration with extra margin\\n- Co-marketing MDF funds\\n- Priority listing in partner locator\\n\\nYour channel manager ({{ $json.channelManager }}) is ready to help. Please respond to this email or call to schedule your remaining steps.\\n\\nBest,\\nChannel Team\\nNaviTools Partner Program",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "sheets-day7",
+      "name": "Log - Day 7 Update",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1850, 400],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "PartnerOnboarding",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Onboarding ID": "={{ $json.onboardingId }}",
+            "Status": "Day 7 - Needs Attention",
+            "Last Milestone": "Day 7 Urgency Check",
+            "Day 7 Check-In At": "={{ Date.now() }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "wait-23-days",
+      "name": "Wait - 23 Days (Total 30)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2050, 300],
+      "parameters": {
+        "resume": "timer",
+        "amount": 23,
+        "unit": "days",
+        "options": {}
+      }
+    },
+    {
+      "id": "set-day30",
+      "name": "Set Status - Day 30 Overdue",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [2250, 200],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Overdue - Escalated to Director"
+            },
+            {
+              "name": "lastMilestone",
+              "value": "Day 30 Final Escalation"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-day30",
+      "name": "Slack - Final Escalation",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [2450, 100],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGERS_CHANNEL",
+        "text": "=:rotating_light: *ONBOARDING OVERDUE - 30 DAYS*\\n\\n*Partner:* {{ $json.partnerName }}\\n*Onboarding ID:* {{ $json.onboardingId }}\\n*Tier:* {{ $json.partnerTier }}\\n*Channel Manager:* {{ $json.channelManager }}\\n*Started:* {{ $json.onboardingStartedAt }}\\n\\n*This partner has NOT completed onboarding in 30 days.*\\n\\n*Escalating to Channel Director for review.*\\n\\nPossible actions:\\n:one: Schedule direct call with partner leadership\\n:two: Place partner in nurture track (reduced engagement)\\n:three: Re-evaluate partner fit for the program\\n\\n@channel Please review and take action.",
+        "username": "Onboarding Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-day30",
+      "name": "Email - Final Notice to Partner",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [2450, 250],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Action Required: Complete Your Partner Onboarding ({{ $json.onboardingId }})",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nIt's been 30 days since you joined the NaviTools partner program and we noticed your onboarding hasn't been completed yet.\\n\\n=== WHAT'S AT STAKE ===\\n\\nTo maintain active partner status and access the full benefits of the program, partners must complete onboarding within 30 days.\\n\\n*Benefits you may be missing:*\\n- Partner portal access with marketing collateral\\n- Lead distribution and deal registration\\n- MDF (Market Development Funds) eligibility\\n- Partner locator listing\\n- NFR software access\\n- 90-Day Jump Start promotion (extra 10% margin)\\n\\n=== GET BACK ON TRACK ===\\n\\nPlease contact your channel manager ({{ $json.channelManager }}) within the next 5 business days to complete your onboarding.\\n\\nIf we don't hear from you, your partner application may be placed in inactive status.\\n\\nWe're here to help you succeed — let's get you onboarded!\\n\\nBest,\\nChannel Team\\nNaviTools Partner Program",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "sheets-day30",
+      "name": "Log - Day 30 Final Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2450, 400],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "PartnerOnboarding",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Onboarding ID": "={{ $json.onboardingId }}",
+            "Partner Name": "={{ $json.partnerName }}",
+            "Status": "Overdue - Escalated to Director",
+            "Last Milestone": "Day 30 Final Escalation",
+            "Day 30 Escalation At": "={{ Date.now() }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "response-onboarding",
+      "name": "Response - Onboarding Started",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2450, 550],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"onboarding_started\",\"onboardingId\":{{ $json.onboardingId }},\"partnerName\":{{ $json.partnerName }},\"tier\":{{ $json.partnerTier }},\"message\":\"Partner onboarding workflow initiated - welcome email sent, Day 3/7/30 follow-ups scheduled\"}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - New Partner Onboarding": {
+      "main": [
+        [
+          {
+            "node": "Format Onboarding Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Onboarding Data": {
+      "main": [
+        [
+          {
+            "node": "Slack - New Partner Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - New Partner Onboarding": {
+      "main": [
+        [
+          {
+            "node": "Email - Welcome & Portal Access",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Welcome & Portal Access": {
+      "main": [
+        [
+          {
+            "node": "Log - Onboarding Started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log - Onboarding Started": {
+      "main": [
+        [
+          {
+            "node": "Wait - 3 Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait - 3 Days": {
+      "main": [
+        [
+          {
+            "node": "Set Status - Day 3 Follow-Up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Status - Day 3 Follow-Up": {
+      "main": [
+        [
+          {
+            "node": "Slack - Day 3 Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Day 3 Reminder": {
+      "main": [
+        [
+          {
+            "node": "Email - Day 3 Check-In",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Day 3 Check-In": {
+      "main": [
+        [
+          {
+            "node": "Log - Day 3 Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log - Day 3 Update": {
+      "main": [
+        [
+          {
+            "node": "Wait - 4 More Days (Total 7)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait - 4 More Days (Total 7)": {
+      "main": [
+        [
+          {
+            "node": "Set Status - Day 7 Urgency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Status - Day 7 Urgency": {
+      "main": [
+        [
+          {
+            "node": "Slack - Day 7 Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Day 7 Escalation": {
+      "main": [
+        [
+          {
+            "node": "Email - Day 7 Urgent Follow-Up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Day 7 Urgent Follow-Up": {
+      "main": [
+        [
+          {
+            "node": "Log - Day 7 Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log - Day 7 Update": {
+      "main": [
+        [
+          {
+            "node": "Wait - 23 Days (Total 30)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait - 23 Days (Total 30)": {
+      "main": [
+        [
+          {
+            "node": "Set Status - Day 30 Overdue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Status - Day 30 Overdue": {
+      "main": [
+        [
+          {
+            "node": "Slack - Final Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Final Escalation": {
+      "main": [
+        [
+          {
+            "node": "Email - Final Notice to Partner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Final Notice to Partner": {
+      "main": [
+        [
+          {
+            "node": "Log - Day 30 Final Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log - Day 30 Final Status": {
+      "main": [
+        [
+          {
+            "node": "Response - Onboarding Started",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Denver",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "tags": [
+    {
+      "name": "channel"
+    },
+    {
+      "name": "onboarding"
+    },
+    {
+      "name": "partner"
+    },
+    {
+      "name": "automation"
+    }
+  ]
+}

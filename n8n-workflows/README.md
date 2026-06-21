@@ -13,9 +13,11 @@ Workflows here automate partner program operations that are better done as **eve
 
 ## Workflow Catalog
 
-| Workflow | Nodes | What It Does |
-|----------|-------|-------------|
-| *(populated by nightly cron)* | | |
+|| Workflow | Nodes | What It Does |
+||----------|-------|-------------|
+|| `deal-registration-auto-approval.json` | 11 | Auto-approve deal registrations for Gold/Platinum partners under $50K; manual review otherwise |
+|| `mdf-request-budget-approval.json` | 16 | MDF budget check with tier-based auto-approval (Platinum ≤$10K) or manual review |
+|| `partner-onboarding-automation.json` | 21 | Full partner onboarding lifecycle: welcome email, portal credentials, Day 3/7/30 follow-ups, Slack notifications, escalation to channel director |
 
 ## Design Principles
 
