@@ -1,0 +1,584 @@
+{
+  "name": "Partner Health Score & Early Warning System",
+  "nodes": [
+    {
+      "id": "webhook-health",
+      "name": "Webhook - Partner Health Check",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "partner-health-score",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "partner-health-hook"
+    },
+    {
+      "id": "format-health-data",
+      "name": "Format Health Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName }}"
+            },
+            {
+              "name": "partnerTier",
+              "value": "={{ $json.body.partnerTier }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.body.partnerEmail }}"
+            },
+            {
+              "name": "channelManager",
+              "value": "={{ $json.body.channelManager || 'Unassigned' }}"
+            },
+            {
+              "name": "dealsRegistered90d",
+              "value": "={{ $json.body.dealsRegistered90d || 0 }}"
+            },
+            {
+              "name": "dealsClosedWon90d",
+              "value": "={{ $json.body.dealsClosedWon90d || 0 }}"
+            },
+            {
+              "name": "mdfUtilizationPct",
+              "value": "={{ $json.body.mdfUtilizationPct || 0 }}"
+            },
+            {
+              "name": "daysSinceLastLogin",
+              "value": "={{ $json.body.daysSinceLastLogin || 999 }}"
+            },
+            {
+              "name": "trainingCompleted",
+              "value": "={{ $json.body.trainingCompleted || 'No' }}"
+            },
+            {
+              "name": "quarterlyRevenue",
+              "value": "={{ $json.body.quarterlyRevenue || 0 }}"
+            },
+            {
+              "name": "healthId",
+              "value": "={{ 'HLTH-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase() }}"
+            },
+            {
+              "name": "checkedAt",
+              "value": "={{ Date.now() }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "calc-deal-score",
+      "name": "Calculate Deal Score",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "dealScore",
+              "value": "={{ $json.dealsRegistered90d > 0 ? Math.min(25, Math.round(($json.dealsRegistered90d / 5) * 25)) : 0 }}"
+            },
+            {
+              "name": "closeRateScore",
+              "value": "={{ $json.dealsRegistered90d > 0 ? Math.round(($json.dealsClosedWon90d / $json.dealsRegistered90d) * 25) : 0 }}"
+            },
+            {
+              "name": "mdfScore",
+              "value": "={{ Math.min(20, Math.round((parseInt($json.mdfUtilizationPct) / 100) * 20)) }}"
+            },
+            {
+              "name": "engagementScore",
+              "value": "={{ $json.daysSinceLastLogin <= 7 ? 15 : ($json.daysSinceLastLogin <= 14 ? 10 : ($json.daysSinceLastLogin <= 30 ? 5 : 0)) }}"
+            },
+            {
+              "name": "trainingScore",
+              "value": "={{ $json.trainingCompleted == 'Yes' ? 15 : 0 }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "calc-total-score",
+      "name": "Calculate Total Health Score",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "healthScore",
+              "value": "={{ ($json.dealScore || 0) + ($json.closeRateScore || 0) + ($json.mdfScore || 0) + ($json.engagementScore || 0) + ($json.trainingScore || 0) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "health-if",
+      "name": "Health Score Routing",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.healthScore }}",
+              "operation": "largerEqual",
+              "value2": 75
+            }
+          ]
+        },
+        "combinator": "and",
+        "options": {}
+      }
+    },
+    {
+      "id": "yellow-check",
+      "name": "Yellow / At-Risk Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.healthScore }}",
+              "operation": "largerEqual",
+              "value2": 50
+            }
+          ]
+        },
+        "combinator": "and",
+        "options": {}
+      }
+    },
+    {
+      "id": "mark-green",
+      "name": "Mark Status - Green",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1250, 100],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "healthStatus",
+              "value": "Green"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "mark-yellow",
+      "name": "Mark Status - Yellow",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1450, 200],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "healthStatus",
+              "value": "Yellow"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "mark-red",
+      "name": "Mark Status - Red",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1450, 400],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "healthStatus",
+              "value": "Red"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-green",
+      "name": "Slack - Green (Healthy)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1450, 50],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_OPS_CHANNEL",
+        "text": "=:green_heart: Partner Health Check - GREEN\\\\n*Partner:* {{ $json.partnerName }} ({{ $json.partnerTier }})\\\\n*Score:* {{ $json.healthScore }}/100\\\\n*Deals (90d):* {{ $json.dealsRegistered90d }} registered, {{ $json.dealsClosedWon90d }} closed\\\\n*MDF Utilization:* {{ $json.mdfUtilizationPct }}%\\\\n*Last Login:* {{ $json.daysSinceLastLogin }} days ago\\\\n*Health ID:* {{ $json.healthId }}\\\\n\\\\n:white_check_mark: No action needed — partner is healthy.",
+        "username": "Health Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "slack-yellow",
+      "name": "Slack - Yellow (At-Risk)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1650, 100],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_OPS_CHANNEL",
+        "text": "=:warning: Partner Health Check - YELLOW\\\\n*Partner:* {{ $json.partnerName }} ({{ $json.partnerTier }})\\\\n*Score:* {{ $json.healthScore }}/100\\\\n*Channel Manager:* {{ $json.channelManager }}\\\\n*Health ID:* {{ $json.healthId }}\\\\n\\\\n*Score Breakdown:*\\\\n:one: Deal Registration Activity: {{ $json.dealScore }}/25 ({{ $json.dealsRegistered90d }} deals in 90d)\\\\n:two: Close Rate: {{ $json.closeRateScore }}/25 ({{ $json.dealsClosedWon90d }}/{{ $json.dealsRegistered90d }} closed)\\\\n:three: MDF Utilization: {{ $json.mdfScore }}/20 ({{ $json.mdfUtilizationPct }}% used)\\\\n:four: Portal Engagement: {{ $json.engagementScore }}/15 ({{ $json.daysSinceLastLogin }} days since login)\\\\n:five: Training: {{ $json.trainingScore }}/15 ({{ $json.trainingCompleted }})\\\\n\\\\n*Recommended Actions:*\\\\n:arrow_right: Schedule a check-in call within 5 business days\\\\n:arrow_right: Review deal pipeline and identify blockers\\\\n:arrow_right: Encourage portal login and training completion\\\\n:arrow_right: Discuss MDF opportunities and co-marketing campaigns\\\\n\\\\nDetails: https://n8n.navitools.net/workflow/partner-review?id={{ $json.healthId }}",
+        "username": "Health Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-yellow",
+      "name": "Email - Yellow Alert to Channel Manager",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1650, 250],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.channelManagerEmail || 'channel-managers@navitools.net' }}",
+        "subject": "=Partner Health Alert - {{ $json.partnerName }} (Score: {{ $json.healthScore }}/100)",
+        "text": "=Hi Channel Manager,\\\\n\\\\nThis is an automated health check alert for partner {{ $json.partnerName }} ({{ $json.partnerTier }}).\\\\n\\\\n=== HEALTH SCORE: {{ $json.healthScore }}/100 (YELLOW - AT-RISK) ===\\\\n\\\\nScore Breakdown:\\\\n:one: Deal Registration: {{ $json.dealScore }}/25 — {{ $json.dealsRegistered90d }} deals registered in last 90 days\\\\n:two: Close Rate: {{ $json.closeRateScore }}/25 — {{ $json.dealsClosedWon90d }} won out of {{ $json.dealsRegistered90d }} registered\\\\n:three: MDF Utilization: {{ $json.mdfScore }}/20 — {{ $json.mdfUtilizationPct }}% of allocated MDF used\\\\n:four: Portal Engagement: {{ $json.engagementScore }}/15 — {{ $json.daysSinceLastLogin }} days since last portal login\\\\n:five: Training Completed: {{ $json.trainingScore }}/15 — Training: {{ $json.trainingCompleted }}\\\\n\\\\n=== RECOMMENDED ACTIONS ===\\\\n\\\\n1. Schedule a check-in call with {{ $json.partnerName }} within 5 business days\\\\n2. Review their deal pipeline — identify deals that need support\\\\n3. Encourage portal re-engagement and training completion\\\\n4. Discuss MDF co-marketing opportunities to utilize budget allocation\\\\n5. Check if a Business Plan of Action needs updating\\\\n\\\\nIf no improvement in next health check (7 days), partner will be escalated.\\\\n\\\\nBest,\\\\nHealth Bot\\\\nNaviTools Channel Operations\\\\nHealth ID: {{ $json.healthId }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "slack-red",
+      "name": "Slack - Red (Critical Escalation)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1650, 400],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGERS_CHANNEL",
+        "text": "=:rotating_light: *PARTNER HEALTH CRITICAL - RED*\\\\n\\\\n*Partner:* {{ $json.partnerName }} ({{ $json.partnerTier }})\\\\n*Score:* {{ $json.healthScore }}/100\\\\n*Channel Manager:* {{ $json.channelManager }}\\\\n*Health ID:* {{ $json.healthId }}\\\\n\\\\n*Score Breakdown:*\\\\n:one: Deal Registration: {{ $json.dealScore }}/25\\\\n:two: Close Rate: {{ $json.closeRateScore }}/25\\\\n:three: MDF Utilization: {{ $json.mdfScore }}/20\\\\n:four: Portal Engagement: {{ $json.engagementScore }}/15 ({{ $json.daysSinceLastLogin }} days since login)\\\\n:five: Training: {{ $json.trainingScore }}/15\\\\n\\\\n*Critical Flags:*\\\\n{{ $json.daysSinceLastLogin > 30 ? ':bangbang: Partner has not logged in for over 30 days' : '' }}\\\\n{{ $json.dealsRegistered90d == 0 ? ':bangbang: No deals registered in 90 days' : '' }}\\\\n{{ $json.trainingCompleted == 'No' ? ':bangbang: Training not completed' : '' }}\\\\n{{ $json.mdfUtilizationPct == 0 ? ':bangbang: No MDF utilization (unused budget)' : '' }}\\\\n\\\\n*Required Actions:*\\\\n1. Channel Manager must contact partner within 24 hours\\\\n2. Schedule leadership review call with Channel Director\\\\n3. Assess partner engagement: place in nurture or initiate offboarding?\\\\n\\\\n@channel Immediate attention required.\\\\nReview: https://n8n.navitools.net/workflow/partner-review?id={{ $json.healthId }}",
+        "username": "Health Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-red",
+      "name": "Email - Red Alert to Channel Director",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1650, 550],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.channelDirectorEmail || 'channel-director@navitools.net' }}",
+        "subject": "=URGENT: Partner Health Critical - {{ $json.partnerName }} (Score: {{ $json.healthScore }}/100)",
+        "text": "=Hi Channel Director,\\\\n\\\\nThis is an *URGENT* automated partner health alert requiring immediate attention.\\\\n\\\\n=== HEALTH SCORE: {{ $json.healthScore }}/100 (RED - CRITICAL) ===\\\\n\\\\nPartner: {{ $json.partnerName }} ({{ $json.partnerTier }})\\\\nChannel Manager: {{ $json.channelManager }}\\\\n\\\\n=== Critical Flags Identified ===\\\\n\\\\n{{ $json.daysSinceLastLogin > 30 ? '- Partner has not logged into the portal in ' + $json.daysSinceLastLogin + ' days' : '' }}\\\\n{{ $json.dealsRegistered90d == 0 ? '- No deals registered in the last 90 days' : '' }}\\\\n{{ $json.trainingCompleted == 'No' ? '- Training has not been completed' : '' }}\\\\n{{ $json.mdfUtilizationPct == 0 ? '- No MDF budget utilized (budget allocated but unused)' : '' }}\\\\n\\\\nScore Breakdown:\\\\n- Deals: {{ $json.dealScore }}/25\\\\n- Close Rate: {{ $json.closeRateScore }}/25\\\\n- MDF Use: {{ $json.mdfScore }}/20\\\\n- Engagement: {{ $json.engagementScore }}/15\\\\n- Training: {{ $json.trainingScore }}/15\\\\n\\\\n=== Required Actions (within 24 hours) ===\\\\n\\\\n1. Channel Manager contacts partner immediately\\\\n2. Schedule partner health review with Channel Director\\\\n3. Determine if partner should be:\\\\n   a) Re-engaged with targeted support plan\\\\n   b) Placed on nurture track (reduced engagement)\\\\n   c) Initiated for offboarding / program exit\\\\n\\\\nHealth ID: {{ $json.healthId }}\\\\n\\\\nBest,\\\\nHealth Bot\\\\nNaviTools Channel Operations",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "sheets-log-all",
+      "name": "Log Health Score to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1450, 700],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "PartnerHealthScores",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Health ID": "={{ $json.healthId }}",
+            "Partner Name": "={{ $json.partnerName }}",
+            "Tier": "={{ $json.partnerTier }}",
+            "Score": "={{ $json.healthScore }}",
+            "Status": "={{ $json.healthStatus }}",
+            "Deals Registered (90d)": "={{ $json.dealsRegistered90d }}",
+            "Deals Closed Won (90d)": "={{ $json.dealsClosedWon90d }}",
+            "MDF Utilization %": "={{ $json.mdfUtilizationPct }}",
+            "Days Since Login": "={{ $json.daysSinceLastLogin }}",
+            "Training Completed": "={{ $json.trainingCompleted }}",
+            "Quarterly Revenue": "={{ $json.quarterlyRevenue }}",
+            "Channel Manager": "={{ $json.channelManager }}",
+            "Checked At": "={{ $json.checkedAt }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "respond-health",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 750],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"healthId\":\"{{ $json.healthId }}\",\"partnerName\":\"{{ $json.partnerName }}\",\"healthScore\":{{ $json.healthScore }},\"healthStatus\":\"{{ $json.healthStatus }}\",\"scoreBreakdown\":{\"dealRegistration\":{{ $json.dealScore }},\"closeRate\":{{ $json.closeRateScore }},\"mdfUtilization\":{{ $json.mdfScore }},\"portalEngagement\":{{ $json.engagementScore }},\"training\":{{ $json.trainingScore }}},\"checkedAt\":\"{{ $json.checkedAt }}\",\"message\":\"Partner health check complete\"}"
+      }
+    },
+    {
+      "id": "noop-merge",
+      "name": "Merge Branches for Logging",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [1450, 600],
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Partner Health Check": {
+      "main": [
+        [
+          {
+            "node": "Format Health Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Health Data": {
+      "main": [
+        [
+          {
+            "node": "Calculate Deal Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Deal Score": {
+      "main": [
+        [
+          {
+            "node": "Calculate Total Health Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Total Health Score": {
+      "main": [
+        [
+          {
+            "node": "Health Score Routing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Health Score Routing": {
+      "main": [
+        [
+          {
+            "node": "Mark Status - Green",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Yellow / At-Risk Check",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Yellow / At-Risk Check": {
+      "main": [
+        [
+          {
+            "node": "Mark Status - Yellow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Status - Red",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Mark Status - Green": {
+      "main": [
+        [
+          {
+            "node": "Slack - Green (Healthy)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Green (Healthy)": {
+      "main": [
+        [
+          {
+            "node": "Merge Branches for Logging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Status - Yellow": {
+      "main": [
+        [
+          {
+            "node": "Slack - Yellow (At-Risk)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Yellow (At-Risk)": {
+      "main": [
+        [
+          {
+            "node": "Email - Yellow Alert to Channel Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Yellow Alert to Channel Manager": {
+      "main": [
+        [
+          {
+            "node": "Merge Branches for Logging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Status - Red": {
+      "main": [
+        [
+          {
+            "node": "Slack - Red (Critical Escalation)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Red (Critical Escalation)": {
+      "main": [
+        [
+          {
+            "node": "Email - Red Alert to Channel Director",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Red Alert to Channel Director": {
+      "main": [
+        [
+          {
+            "node": "Merge Branches for Logging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Branches for Logging": {
+      "main": [
+        [
+          {
+            "node": "Log Health Score to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Health Score to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Denver",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "tags": [
+    {
+      "name": "channel"
+    },
+    {
+      "name": "partner-health"
+    },
+    {
+      "name": "monitoring"
+    },
+    {
+      "name": "early-warning"
+    }
+  ]
+}
