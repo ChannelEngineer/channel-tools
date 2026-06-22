@@ -1,6 +1,6 @@
 """
 Partner Portal MCP Server
-Grounded in the Chanimal Channel Kit — partner self-service, locator, MDF, NFR quiz, and portal management.
+Automated partner self-service, partner locator, MDF request processing, NFR enablement, and deal pipeline management -- grounded in production channel program mechanics.
 """
 from mcp.server import Server, NotificationOptions
 from mcp.server.models import InitializationOptions

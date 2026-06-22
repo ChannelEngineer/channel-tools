@@ -1,7 +1,7 @@
 """
 Channel Management MCP Server
-Grounded in the Chanimal Channel Kit — a production-proven channel program framework
-built from 200+ channel program launches.
+Grounded in production-proven channel program mechanics — tier structures, deal registration,
+lead management, MDF policies, and onboarding from hundreds of channel program launches.
 
 Tools: design_partner_program, register_deal, manage_leads, generate_policy, onboard_partner
 """
@@ -16,7 +16,7 @@ from typing import Any
 server = Server("channel-mgmt")
 
 # ── Knowledge Base ──────────────────────────────────────────────────────────
-# Encoded from the Chanimal Channel Kit docs
+# Encoded from production channel program mechanics
 
 DISTRIBUTION_MODELS = {
     "referral_affiliate": {
@@ -242,7 +242,7 @@ async def list_tools() -> list[types.Tool]:
     return [
         types.Tool(
             name="design_partner_program",
-            description="Design a 3-tier partner program (Authorized → Gold → Platinum) using the Chanimal framework. Generates benefits grid, requirements, and margin structure.",
+            description="Design a 3-tier partner program (Authorized → Gold → Platinum) with benefits grid, requirements, and margin structure.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -270,7 +270,7 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="register_deal",
-            description="Register a partner deal opportunity. Handles the full deal registration lifecycle including margin rules, exclusivity periods, and conflict checks per Chanimal best practices.",
+            description="Register a partner deal opportunity. Handles the full deal registration lifecycle including margin rules, exclusivity periods, and conflict checks.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -325,7 +325,7 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="classify_lead",
-            description="Classify a lead as A, B, or C per Chanimal lead management framework. A = immediate, B = near-term, C = nurture. Includes SLA rules, follow-up windows, and auto-reassignment logic.",
+            description="Classify a lead as A, B, or C. A = immediate, B = near-term, C = nurture. Includes SLA rules, follow-up windows, and auto-reassignment logic.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -356,7 +356,7 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="generate_policy",
-            description="Generate a channel policy document from Chanimal templates. Choose from: lead policy, deal registration, MDF, NFR, partner program overview, or partner onboarding.",
+            description="Generate a channel policy document. Choose from: lead policy, deal registration, MDF, NFR, partner program overview, or partner onboarding.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -391,7 +391,7 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="onboard_partner",
-            description="Generate a partner onboarding plan based on the Chanimal framework. Covers orientation, training, setup, and go-live checklist.",
+            description="Generate a partner onboarding plan. Covers orientation, training, setup, and go-live checklist.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -455,7 +455,7 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="calculate_channel_roi",
-            description="Calculate channel ROI based on the Chanimal framework. Shows reseller lifetime value, recruitment ROI, and promotional budget returns. Uses real spreadsheet logic from the Chanimal Channel ROI presentation.",
+            description="Calculate channel ROI. Shows reseller lifetime value, recruitment ROI, and promotional budget returns. Uses real spreadsheet logic from channel ROI analysis.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -489,7 +489,7 @@ async def list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="forecast_channel_sales",
-            description="Generate a 12-month channel sales forecast based on the Chanimal reseller recruiting model. Includes monthly revenue projections, ramp-up timelines, and cash flow expectations.",
+            description="Generate a 12-month channel sales forecast. Includes monthly revenue projections, ramp-up timelines, and cash flow expectations.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -563,7 +563,7 @@ def _handle_design_program(args: dict) -> list[types.TextContent]:
 
     # Generate the benefits grid document
     output = f"""# {company} Partner Program
-*Generated from the Chanimal Channel Kit framework*
+*Generated from production channel program framework*
 
 ## Program Overview
 A 3-tier partner program designed to reward partner commitment and performance.
@@ -1033,7 +1033,7 @@ def _handle_distribution_model(args: dict) -> list[types.TextContent]:
 
 *Product type: {product_type.upper()}* | *Maturity: {maturity}*
 {'*International: Yes*' if international else ''}
-*Generated from the Chanimal Distribution Models (2026)*
+*Generated from distribution models (2026)*
 
 ## Selected Models
 
@@ -1116,7 +1116,7 @@ def _handle_channel_roi(args: dict) -> list[types.TextContent]:
 
     output = f"""# Channel ROI Calculator
 
-*Based on the Chanimal Channel ROI framework*
+*Based on channel ROI analysis*
 
 ## Reseller Value
 
@@ -1145,7 +1145,7 @@ def _handle_channel_roi(args: dict) -> list[types.TextContent]:
 
 > "The absolute HIGHEST ROI of anything a company can do with their promotional budget."
 
-### Promotional Scenarios (from Chanimal 2026):
+### Promotional Scenarios:
 | Campaign | Budget | Resellers | Revenue | ROI |
 |---|---|---|---|---|
 | Direct Mail (2,000 pcs) | $8,000 | 20 | $6M | 750x |
@@ -1193,7 +1193,7 @@ def _handle_sales_forecast(args: dict) -> list[types.TextContent]:
 
     output = f"""# Channel Sales Forecast
 
-*Based on the Chanimal Reseller Recruiting Model*
+*Based on reseller recruiting model*
 
 ## Assumptions
 
