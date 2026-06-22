@@ -8,7 +8,7 @@
 
 Existing tools in `mcp-servers/channel-mgmt/` cover partner onboarding, deal registration, lead classification, and ROI calculation — but none handle the **incentive program design**, **rebate computation**, and **MDF claims processing** that channel managers spend most of their time on. This prototype fills that gap.
 
-**Research sources:** Futurum 5 Key Predictions (2025), Channelscaler State of Partnering 2025, ZINFI MDF automation, LinkedIn AI partner marketing trends, Chanimal partner program docs.
+**Research sources:** Futurum 5 Key Predictions (2025), Channelscaler State of Partnering 2025, ZINFI MDF automation, LinkedIn AI partner marketing trends, production channel program docs.
 
 ## What it does
 

@@ -6,7 +6,7 @@
 
 ## What This Is
 
-This repository demonstrates a complete, production-grade channel management framework encoded as composable MCP (Model Context Protocol) servers. Every tool is grounded in the **Chanimal Channel Kit** — a collection of 75 documents, templates, and policies refined across **over 200 channel program launches**.
+This repository demonstrates a complete, production-grade channel management framework encoded as composable MCP (Model Context Protocol) servers. Every tool is grounded in production-proven channel program mechanics — tier structures, deal registration rules, lead management SLAs, MDF policies, and onboarding sequences refined across hundreds of channel program launches.
 
 This isn't theory. These are the actual mechanics of running a world-class partner program.
 
@@ -77,7 +77,7 @@ mcp_servers:
 
 ## Domain Knowledge
 
-The Chanimal Channel Kit (106 documents — 2026 edition) covers every aspect of channel program execution:
+This toolkit encodes channel program mechanics across every dimension of partner program execution:
 
 - **Program design** — Tier structures, level grids, competitive analysis templates, **CRM margin comparisons** (23 vendor programs analyzed)
 - **Recruiting** — Phone scripts, email sequences, application forms, qualification criteria, **affiliate/referral templates**
