@@ -1,0 +1,74 @@
+[
+  {
+    "name": "TechSolvers Inc",
+    "tier": "platinum",
+    "region": "West",
+    "expertise": ["cloud", "saas", "security", "ai-ml"],
+    "active_deals": 3,
+    "engagement_score": 88,
+    "certifications": ["AWS Advanced", "Azure Expert", "GCP Partner"]
+  },
+  {
+    "name": "DataBridge Partners",
+    "tier": "gold",
+    "region": "Midwest",
+    "expertise": ["data", "analytics", "cloud", "ai-ml"],
+    "active_deals": 2,
+    "engagement_score": 75,
+    "certifications": ["AWS Advanced", "Snowflake Pro"]
+  },
+  {
+    "name": "SecureNet Solutions",
+    "tier": "platinum",
+    "region": "Northeast",
+    "expertise": ["security", "network", "cloud", "compliance"],
+    "active_deals": 5,
+    "engagement_score": 92,
+    "certifications": ["CISSP", "Azure Security", "AWS Security"]
+  },
+  {
+    "name": "CloudMaven Consulting",
+    "tier": "gold",
+    "region": "West",
+    "expertise": ["cloud", "devops", "kubernetes", "saas"],
+    "active_deals": 1,
+    "engagement_score": 65,
+    "certifications": ["CKA", "AWS DevOps", "GCP ACE"]
+  },
+  {
+    "name": "Southeast Tech Group",
+    "tier": "authorized",
+    "region": "Southeast",
+    "expertise": ["saas", "crm", "marketing"],
+    "active_deals": 1,
+    "engagement_score": 45,
+    "certifications": ["Salesforce Admin"]
+  },
+  {
+    "name": "Great Lakes Integrators",
+    "tier": "gold",
+    "region": "Midwest",
+    "expertise": ["data", "analytics", "saas", "security"],
+    "active_deals": 2,
+    "engagement_score": 70,
+    "certifications": ["Azure Data", "Power BI"]
+  },
+  {
+    "name": "Pacific NW Systems",
+    "tier": "platinum",
+    "region": "Pacific Northwest",
+    "expertise": ["cloud", "saas", "ai-ml", "iot"],
+    "active_deals": 4,
+    "engagement_score": 85,
+    "certifications": ["AWS Pro", "GCP ACE", "TensorFlow"]
+  },
+  {
+    "name": "Atlantic IT Solutions",
+    "tier": "authorized",
+    "region": "Northeast",
+    "expertise": ["it-support", "managed-services", "saas"],
+    "active_deals": 0,
+    "engagement_score": 35,
+    "certifications": ["CompTIA", "ITIL"]
+  }
+]

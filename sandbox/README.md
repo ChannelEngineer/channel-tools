@@ -43,3 +43,4 @@ The channel problem it could solve
 | Date       | Tool | Description |
 |------------|------|-------------|
 | 2026-06-21 | PIRE | Partner Incentive & Rebate Engine — tiered rebates, MDF claims, payout automation |
+| 2026-06-23 | PCO | Partner Co-Sell Orchestrator — multi-party co-sell deal orchestration with credit splitting, partner matching, and pipeline dashboards |
