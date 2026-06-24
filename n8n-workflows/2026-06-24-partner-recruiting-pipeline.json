@@ -1,0 +1,608 @@
+{
+  "name": "Partner Recruiting & Application Pipeline",
+  "nodes": [
+    {
+      "id": "webhook-apply",
+      "name": "Webhook - Partner Application",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "partner-application",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "partner-apply-hook"
+    },
+    {
+      "id": "set-validate",
+      "name": "Format & Validate Application",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.body.partnerEmail }}"
+            },
+            {
+              "name": "companyName",
+              "value": "={{ $json.body.companyName || $json.body.partnerName }}"
+            },
+            {
+              "name": "website",
+              "value": "={{ $json.body.website || 'Not provided' }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $json.body.phone || 'Not provided' }}"
+            },
+            {
+              "name": "region",
+              "value": "={{ $json.body.region }}"
+            },
+            {
+              "name": "annualRevenue",
+              "value": "={{ $json.body.annualRevenue || 0 }}"
+            },
+            {
+              "name": "partnerCount",
+              "value": "={{ $json.body.partnerCount || 0 }}"
+            },
+            {
+              "name": "expertise",
+              "value": "={{ $json.body.expertise || '' }}"
+            },
+            {
+              "name": "targetMarket",
+              "value": "={{ $json.body.targetMarket || 'Not specified' }}"
+            },
+            {
+              "name": "existingPrograms",
+              "value": "={{ $json.body.existingPrograms || 'None' }}"
+            },
+            {
+              "name": "referralSource",
+              "value": "={{ $json.body.referralSource || 'Direct' }}"
+            },
+            {
+              "name": "isComplete",
+              "value": "={{ $json.body.partnerName && $json.body.partnerEmail && $json.body.companyName && $json.body.region ? 'yes' : 'no' }}"
+            },
+            {
+              "name": "applicationId",
+              "value": "={{ 'APP-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase() }}"
+            },
+            {
+              "name": "status",
+              "value": "Received"
+            },
+            {
+              "name": "submittedAt",
+              "value": "={{ Date.now() }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "check-complete",
+      "name": "Application Complete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "fieldName": "isComplete",
+              "operator": "equal",
+              "value": "yes"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "reject-incomplete",
+      "name": "Send - Incomplete Application Notice",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [850, 480],
+      "parameters": {
+        "fromEmail": "partnerprogram@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'Action Required: Your Partner Application (' + $json.applicationId + ') Needs More Information' }}",
+        "text": "={{ 'Dear ' + $json.partnerName + ',\\n\\nThank you for your interest in our partner program. We received your application (' + $json.applicationId + ') but it is missing required information.\\n\\nMissing Fields:\\n' + ($json.body.partnerName ? '' : '- Partner Name\\n') + ($json.body.partnerEmail ? '' : '- Email Address\\n') + ($json.body.companyName ? '' : '- Company Name\\n') + ($json.body.region ? '' : '- Region/ Territory\\n') + '\\nPlease complete your application by visiting: https://partner.navitools.net/apply/' + $json.applicationId + '\\n\\nBest regards,\\nPartner Program Team' }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "respond-incomplete",
+      "name": "Respond - Incomplete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 480],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, applicationId: $json.applicationId, status: 'incomplete', message: 'Application is incomplete. Check your email for details.' }) }}"
+      }
+    },
+    {
+      "id": "score-partner",
+      "name": "Score Partner Application",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 200],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "revenueScore",
+              "value": "={{ $json.annualRevenue >= 1000000 ? 25 : ($json.annualRevenue >= 500000 ? 20 : ($json.annualRevenue >= 100000 ? 15 : ($json.annualRevenue > 0 ? 10 : 0))) }}"
+            },
+            {
+              "name": "regionScore",
+              "value": "={{ ['North America', 'EMEA', 'APAC'].includes($json.region) ? 20 : ($json.region ? 10 : 0) }}"
+            },
+            {
+              "name": "expertiseScore",
+              "value": "={{ ($json.expertise && $json.expertise.split(',').length >= 3) ? 25 : ($json.expertise && $json.expertise.split(',').length >= 1 ? 15 : 0) }}"
+            },
+            {
+              "name": "teamScore",
+              "value": "={{ $json.partnerCount >= 10 ? 15 : ($json.partnerCount >= 5 ? 10 : ($json.partnerCount > 0 ? 5 : 0)) }}"
+            },
+            {
+              "name": "marketScore",
+              "value": "={{ $json.targetMarket && $json.targetMarket !== 'Not specified' ? 15 : 0 }}"
+            }
+          ],
+          "string": [
+            {
+              "name": "totalScore",
+              "value": "={{ $json.revenueScore + $json.regionScore + $json.expertiseScore + $json.teamScore + $json.marketScore }}"
+            },
+            {
+              "name": "recommendedTier",
+              "value": "={{ (Number($json.revenueScore) + Number($json.regionScore) + Number($json.expertiseScore) + Number($json.teamScore) + Number($json.marketScore)) >= 80 ? 'Platinum' : ((Number($json.revenueScore) + Number($json.regionScore) + Number($json.expertiseScore) + Number($json.teamScore) + Number($json.marketScore)) >= 55 ? 'Gold' : 'Authorized') }}"
+            },
+            {
+              "name": "scoreRationale",
+              "value": "={{ 'Revenue=' + $json.annualRevenue + ' ($' + $json.revenueScore + '/25pts), Region=' + $json.region + ' ($' + $json.regionScore + '/20pts), Expertise=' + ($json.expertise || 'none') + ' ($' + $json.expertiseScore + '/25pts), Team=' + $json.partnerCount + ' staff ($' + $json.teamScore + '/15pts), Market=' + $json.targetMarket + ' ($' + $json.marketScore + '/15pts)' }}"
+            }
+          ]
+        },
+        "options": {
+          "include": "all"
+        }
+      }
+    },
+    {
+      "id": "slack-new-applicant",
+      "name": "Slack - New Applicant Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1050, 40],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_RECRUITING_CHANNEL",
+        "text": "=:mailbox_with_mail: New Partner Application Received\\n*Application ID:* {{ $json.applicationId }}\\n*Partner:* {{ $json.partnerName }}\\n*Company:* {{ $json.companyName }}\\n*Email:* {{ $json.partnerEmail }}\\n*Region:* {{ $json.region }}\\n*Revenue:* ${{ $json.annualRevenue }}\\n*Team Size:* {{ $json.partnerCount }} staff\\n*Expertise:* {{ $json.expertise }}\\n*Recommended Tier:* {{ $json.recommendedTier }}\\n*Total Score:* {{ $json.totalScore }}/100\\n*Referral Source:* {{ $json.referralSource }}\\n\\n:bar_chart: *Score Breakdown:*\\n{{ $json.scoreRationale }}\\n\\n:point_right: Review at: https://partner.navitools.net/applications/{{ $json.applicationId }}",
+        "username": "Partner Recruiting Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "check-auto-approve",
+      "name": "Auto-Approval Eligible?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1050, 250],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "fieldName": "totalScore",
+              "operator": "largerEqual",
+              "value": "60"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "send-auto-approve",
+      "name": "Send - Approval + Onboarding Instructions",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1250, 100],
+      "parameters": {
+        "fromEmail": "partnerprogram@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'Welcome to the Partner Program! Application ' + $json.applicationId + ' Approved' }}",
+        "text": "={{ 'Dear ' + $json.partnerName + ',\\n\\nCongratulations! We are thrilled to welcome ' + $json.companyName + ' to our partner program as an approved ' + $json.recommendedTier + ' Partner (Application: ' + $json.applicationId + ').\\n\\nYour application scored ' + $json.totalScore + '/100 — a strong fit for our ecosystem.\\n\\nNext Steps — Your Onboarding Checklist:\\n1. Complete orientation: https://partner.navitools.net/orientation\\n2. Set up your partner portal account: https://partner.navitools.net/portal\\n3. Complete NFR quiz for demo licenses: https://partner.navitools.net/nfr-quiz\\n4. Schedule your onboarding call: https://calendly.com/channel-team/onboarding\\n5. Review partner program benefits: https://partner.navitools.net/benefits\\n6. Submit your marketing plan of action (within 30 days)\\n\\nYour assigned Channel Manager will reach out within 2 business days to guide you through onboarding.\\n\\nBest regards,\\nPartner Program Team\\nnavitools.net' }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "slack-auto-approve",
+      "name": "Slack - Auto-Approved",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1250, 250],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_RECRUITING_CHANNEL",
+        "text": "=:white_check_mark: Partner Auto-Approved\\n*Application:* {{ $json.applicationId }}\\n*Partner:* {{ $json.partnerName }} ({{ $json.companyName }})\\n*Tier:* {{ $json.recommendedTier }}\\n*Score:* {{ $json.totalScore }}/100\\n*Status:* Auto-approved — Onboarding started\\n\\n:inbox_tray: Onboarding instructions sent to {{ $json.partnerEmail }}",
+        "username": "Partner Recruiting Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "sheet-auto-log",
+      "name": "Log - Auto-Approved to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1250, 400],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": "Approved Partners",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "applicationId": "={{ $json.applicationId }}",
+            "partnerName": "={{ $json.partnerName }}",
+            "companyName": "={{ $json.companyName }}",
+            "partnerEmail": "={{ $json.partnerEmail }}",
+            "phone": "={{ $json.phone }}",
+            "region": "={{ $json.region }}",
+            "annualRevenue": "={{ $json.annualRevenue }}",
+            "expertise": "={{ $json.expertise }}",
+            "recommendedTier": "={{ $json.recommendedTier }}",
+            "totalScore": "={{ $json.totalScore }}",
+            "status": "Approved-Auto",
+            "approvedAt": "={{ Date.now() }}"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "id": "respond-approved",
+      "name": "Respond - Approved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 250],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, applicationId: $json.applicationId, status: 'approved', tier: $json.recommendedTier, score: Number($json.totalScore), message: 'Application approved! Check your email for onboarding instructions.' }) }}"
+      }
+    },
+    {
+      "id": "send-manual-review-ack",
+      "name": "Send - Manual Review Acknowledgment",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1250, 520],
+      "parameters": {
+        "fromEmail": "partnerprogram@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'Application Received — Under Review: ' + $json.applicationId }}",
+        "text": "={{ 'Dear ' + $json.partnerName + ',\\n\\nThank you for applying to our partner program. We have received your application (' + $json.applicationId + ') and it is now under review by our channel team.\\n\\nApplication Summary:\\n- Company: ' + $json.companyName + '\\n- Region: ' + $json.region + '\\n- Annual Revenue: $' + $json.annualRevenue + '\\n- Team Size: ' + $json.partnerCount + ' staff\\n- Expertise: ' + $json.expertise + '\\n\\nA Channel Manager will review your application within 3-5 business days and follow up with next steps.\\n\\nIn the meantime, feel free to explore our partner resources: https://partner.navitools.net/resources\\n\\nBest regards,\\nPartner Program Team\\nnavitools.net' }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "slack-manual-review",
+      "name": "Slack - Manual Review Needed",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1250, 670],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGER_CHANNEL",
+        "text": "=:mag: Partner Application — Manual Review Required\\n*Application ID:* {{ $json.applicationId }}\\n*Partner:* {{ $json.partnerName }} ({{ $json.companyName }})\\n*Email:* {{ $json.partnerEmail }}\\n*Region:* {{ $json.region }}\\n*Revenue:* ${{ $json.annualRevenue }}\\n*Score:* {{ $json.totalScore }}/100\\n*Recommended Tier:* {{ $json.recommendedTier }}\\n*Score Rationale:* {{ $json.scoreRationale }}\\n\\n:question: This application needs manual review because the score is below the auto-approval threshold.\\n\\n*Please review and decide:*\\n:white_check_mark: /partner-approve {{ $json.applicationId }}\\n:x: /partner-decline {{ $json.applicationId }}\\n:memo: /partner-request-info {{ $json.applicationId }}\\n\\nOr review at: https://partner.navitools.net/applications/{{ $json.applicationId }}",
+        "username": "Partner Recruiting Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "sheet-review-log",
+      "name": "Log - Manual Review to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1250, 820],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": "Pending Review",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "applicationId": "={{ $json.applicationId }}",
+            "partnerName": "={{ $json.partnerName }}",
+            "companyName": "={{ $json.companyName }}",
+            "partnerEmail": "={{ $json.partnerEmail }}",
+            "phone": "={{ $json.phone }}",
+            "region": "={{ $json.region }}",
+            "annualRevenue": "={{ $json.annualRevenue }}",
+            "expertise": "={{ $json.expertise }}",
+            "recommendedTier": "={{ $json.recommendedTier }}",
+            "totalScore": "={{ $json.totalScore }}",
+            "status": "Pending Review",
+            "submittedAt": "={{ $json.submittedAt }}"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "id": "respond-review",
+      "name": "Respond - Under Review",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 670],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, applicationId: $json.applicationId, status: 'pending_review', score: Number($json.totalScore), message: 'Application received and under review. We will follow up within 3-5 business days.' }) }}"
+      }
+    },
+    {
+      "id": "acknowledge-applicant",
+      "name": "Send - Acknowledgment Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1050, 100],
+      "parameters": {
+        "fromEmail": "partnerprogram@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'Application Received — ' + $json.applicationId }}",
+        "text": "={{ 'Dear ' + $json.partnerName + ',\\n\\nThank you for applying to our partner program. We received your application (' + $json.applicationId + ') and are processing it.\\n\\nYour application is being evaluated for the ' + $json.recommendedTier + ' tier. We will follow up shortly.\\n\\nBest regards,\\nPartner Program Team\\nnavitools.net' }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Partner Application": {
+      "main": [
+        [
+          {
+            "node": "Format & Validate Application",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format & Validate Application": {
+      "main": [
+        [
+          {
+            "node": "Application Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Application Complete?": {
+      "main": [
+        [
+          {
+            "node": "Score Partner Application",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send - Incomplete Application Notice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send - Incomplete Application Notice": {
+      "main": [
+        [
+          {
+            "node": "Respond - Incomplete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Partner Application": {
+      "main": [
+        [
+          {
+            "node": "Send - Acknowledgment Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send - Acknowledgment Email": {
+      "main": [
+        [
+          {
+            "node": "Slack - New Applicant Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - New Applicant Notification": {
+      "main": [
+        [
+          {
+            "node": "Auto-Approval Eligible?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Approval Eligible?": {
+      "main": [
+        [
+          {
+            "node": "Send - Approval + Onboarding Instructions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send - Manual Review Acknowledgment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send - Approval + Onboarding Instructions": {
+      "main": [
+        [
+          {
+            "node": "Slack - Auto-Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Auto-Approved": {
+      "main": [
+        [
+          {
+            "node": "Log - Auto-Approved to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log - Auto-Approved to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond - Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send - Manual Review Acknowledgment": {
+      "main": [
+        [
+          {
+            "node": "Slack - Manual Review Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Manual Review Needed": {
+      "main": [
+        [
+          {
+            "node": "Log - Manual Review to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log - Manual Review to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond - Under Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "versionId": "1.0",
+  "active": false,
+  "settings": {},
+  "tags": [
+    "partner-recruiting",
+    "application-pipeline",
+    "auto-approval",
+    "partner-onboarding"
+  ]
+}
