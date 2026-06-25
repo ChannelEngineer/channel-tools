@@ -1,0 +1,62 @@
+[
+  {
+    "name": "TechSolvers Inc",
+    "tier": "platinum",
+    "revenue": 285000,
+    "deals": 22,
+    "certifications": 3,
+    "training_hours": 25,
+    "mdf_used": 15000,
+    "mdf_allocated": 25000,
+    "portal_logins": 18,
+    "days_since_last_deal": 10
+  },
+  {
+    "name": "CloudBridge Partners",
+    "tier": "gold",
+    "revenue": 82000,
+    "deals": 9,
+    "certifications": 1,
+    "training_hours": 14,
+    "mdf_used": 5000,
+    "mdf_allocated": 12000,
+    "portal_logins": 10,
+    "days_since_last_deal": 22
+  },
+  {
+    "name": "Meridian Solutions",
+    "tier": "gold",
+    "revenue": 45000,
+    "deals": 4,
+    "certifications": 0,
+    "training_hours": 6,
+    "mdf_used": 2000,
+    "mdf_allocated": 10000,
+    "portal_logins": 3,
+    "days_since_last_deal": 120
+  },
+  {
+    "name": "Atlas Consulting Group",
+    "tier": "authorized",
+    "revenue": 15000,
+    "deals": 2,
+    "certifications": 0,
+    "training_hours": 4,
+    "mdf_used": 0,
+    "mdf_allocated": 5000,
+    "portal_logins": 2,
+    "days_since_last_deal": 65
+  },
+  {
+    "name": "Pinnacle Systems",
+    "tier": "platinum",
+    "revenue": 310000,
+    "deals": 18,
+    "certifications": 2,
+    "training_hours": 22,
+    "mdf_used": 18000,
+    "mdf_allocated": 30000,
+    "portal_logins": 16,
+    "days_since_last_deal": 8
+  }
+]
