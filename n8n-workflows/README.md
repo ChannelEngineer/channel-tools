@@ -13,13 +13,14 @@ Workflows here automate partner program operations that are better done as **eve
 
 ## Workflow Catalog
 
-|| Workflow | Nodes | What It Does |
-||----------|-------|-------------|
-|| `deal-registration-auto-approval.json` | 11 | Auto-approve deal registrations for Gold/Platinum partners under $50K; manual review otherwise |
-|| `mdf-request-budget-approval.json` | 16 | MDF budget check with tier-based auto-approval (Platinum ≤$10K) or manual review |
+||| Workflow | Nodes | What It Does |
+|||----------|-------|-------------|
+||| `deal-registration-auto-approval.json` | 11 | Auto-approve deal registrations for Gold/Platinum partners under $50K; manual review otherwise |
+||| `mdf-request-budget-approval.json` | 16 | MDF budget check with tier-based auto-approval (Platinum ≤$10K) or manual review |
 ||| `partner-onboarding-automation.json` | 21 | Full partner onboarding lifecycle: welcome email, portal credentials, Day 3/7/30 follow-ups, Slack notifications, escalation to channel director |
 ||| `2026-06-22-partner-health-scoring.json` | 17 | Partner Health Score & Early Warning System — multi-factor health scoring (deals, MDF, engagement, training) with Green/Yellow/Red routing, Slack alerts, email escalation |
 ||| `2026-06-24-partner-recruiting-pipeline.json` | 17 | Partner recruiting pipeline — application intake, AI scoring/qualification, auto-approval (≥60pts) with onboarding, manual review with Slack escalation for lower scores, Google Sheets audit logging |
+||| `2026-06-26-partner-agreement-renewal.json` | 24 | Partner Agreement Renewal & Lifecycle Automation — contract expiry tracking with 90/60/30 day notification cadence, multi-factor renewal scoring (revenue, deals, training, certs, engagement), auto-renewal for strong performers (≥70pts), manual review with performance warnings for below-threshold partners, Slack alerts, email notifications, Google Sheets audit trail |
 
 ## Design Principles
 

@@ -1,0 +1,696 @@
+{
+  "name": "Partner Agreement Renewal & Lifecycle Automation",
+  "nodes": [
+    {
+      "id": "schedule-trigger",
+      "name": "Schedule - Weekly Renewal Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "hours", "hoursInterval": 168}]
+        }
+      }
+    },
+    {
+      "id": "webhook-trigger",
+      "name": "Webhook - Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 480],
+      "parameters": {
+        "path": "agreement-renewal-check",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "agreement-renew-hook"
+    },
+    {
+      "id": "merge-triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [450, 380],
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition"
+      }
+    },
+    {
+      "id": "set-format",
+      "name": "Format Agreement Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "partnerId",
+              "value": "={{ $json.body.partnerId || $json.partnerId || 'PTR-' + Date.now().toString(36).toUpperCase() }}"
+            },
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName || $json.partnerName || 'Sample Partner' }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.body.partnerEmail || $json.partnerEmail || 'partner@example.com' }}"
+            },
+            {
+              "name": "companyName",
+              "value": "={{ $json.body.companyName || $json.companyName || $json.partnerName || 'Sample Corp' }}"
+            },
+            {
+              "name": "tier",
+              "value": "={{ $json.body.tier || $json.tier || 'Gold' }}"
+            },
+            {
+              "name": "region",
+              "value": "={{ $json.body.region || $json.region || 'North America' }}"
+            },
+            {
+              "name": "agreementId",
+              "value": "={{ $json.body.agreementId || $json.agreementId || 'AGR-' + Date.now().toString(36).toUpperCase() }}"
+            },
+            {
+              "name": "agreementStartDate",
+              "value": "={{ $json.body.agreementStartDate || $json.agreementStartDate || '2025-07-01' }}"
+            },
+            {
+              "name": "agreementEndDate",
+              "value": "={{ $json.body.agreementEndDate || $json.agreementEndDate || '2026-07-01' }}"
+            },
+            {
+              "name": "daysUntilExpiry",
+              "value": "={{ $json.body.daysUntilExpiry !== undefined ? $json.body.daysUntilExpiry : Math.ceil((new Date($json.agreementEndDate) - new Date()) / (1000 * 60 * 60 * 24)) }}"
+            },
+            {
+              "name": "annualRevenue",
+              "value": "={{ $json.body.annualRevenue || $json.annualRevenue || '0' }}"
+            },
+            {
+              "name": "dealsRegistered",
+              "value": "={{ $json.body.dealsRegistered || $json.dealsRegistered || '0' }}"
+            },
+            {
+              "name": "mdfUtilization",
+              "value": "={{ $json.body.mdfUtilization || $json.mdfUtilization || '0' }}"
+            },
+            {
+              "name": "trainingCompleted",
+              "value": "={{ $json.body.trainingCompleted || $json.trainingCompleted || '0' }}"
+            },
+            {
+              "name": "certificationsHeld",
+              "value": "={{ $json.body.certificationsHeld || $json.certificationsHeld || '0' }}"
+            },
+            {
+              "name": "portalLogins",
+              "value": "={{ $json.body.portalLogins || $json.portalLogins || '0' }}"
+            },
+            {
+              "name": "status",
+              "value": "Active"
+            },
+            {
+              "name": "renewalStatus",
+              "value": "Pending"
+            },
+            {
+              "name": "checkedAt",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "check-expired",
+      "name": "Agreement Expired?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "fieldName": "daysUntilExpiry",
+              "operator": "smaller",
+              "value": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "set-expired",
+      "name": "Set - Mark as Expired",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1050, 80],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "renewalStatus",
+              "value": "Expired"
+            },
+            {
+              "name": "status",
+              "value": "Expired"
+            }
+          ]
+        },
+        "options": {
+          "include": "all"
+        }
+      }
+    },
+    {
+      "id": "slack-expired",
+      "name": "Slack - Agreement Expired",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1050, 200],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_OPS_CHANNEL",
+        "text": "=:rotating_light: *Partner Agreement Expired*\\n*Partner:* {{ $json.partnerName }} ({{ $json.companyName }})\\n*Agreement:* {{ $json.agreementId }}\\n*Tier:* {{ $json.tier }}\\n*Expired:* {{ $json.agreementEndDate }}\\n*Region:* {{ $json.region }}\\n*Partner Email:* {{ $json.partnerEmail }}\\n\\n:warning: Portal access should be restricted.\\n:inbox_tray: Final notice will be sent to partner.",
+        "username": "Partner Lifecycle Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-expired",
+      "name": "Send - Agreement Expired Notice",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1050, 340],
+      "parameters": {
+        "fromEmail": "partnerprogram@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'IMPORTANT: Your Partner Agreement (' + $json.agreementId + ') Has Expired' }}",
+        "text": "={{ 'Dear ' + $json.partnerName + ',\\n\\nYour partner agreement (' + $json.agreementId + ') with navitools.net expired on ' + $json.agreementEndDate + '.\\n\\nAs a result, your partner portal access and deal registration privileges have been suspended.\\n\\nIf you wish to renew your partnership, please contact your Channel Manager or visit: https://partner.navitools.net/renew\\n\\nIf you have any questions, please reach out to your Channel Manager or email partnerprogram@navitools.net.\\n\\nBest regards,\\nPartner Program Team' }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "check-urgency",
+      "name": "Urgency Check (30/60/90 Days)",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [1050, 480],
+      "parameters": {
+        "dataType": "number",
+        "value1": "={{ $json.daysUntilExpiry }}",
+        "ranges": {
+          "ranges": [
+            {"from": 0, "to": 31},
+            {"from": 31, "to": 61},
+            {"from": 61, "to": 91}
+          ]
+        }
+      }
+    },
+    {
+      "id": "send-90day",
+      "name": "Send - 90 Day Renewal Notice",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1250, 700],
+      "parameters": {
+        "fromEmail": "partnerprogram@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'Your Partner Agreement Renews in ' + $json.daysUntilExpiry + ' Days — Let\\'s Plan Ahead' }}",
+        "text": "={{ 'Dear ' + $json.partnerName + ',\\n\\nWe hope this message finds you well. Your partner agreement (' + $json.agreementId + ') is set to renew in approximately ' + $json.daysUntilExpiry + ' days.\\n\\nWe value our partnership with ' + $json.companyName + ' and would love to continue working together. Here\\'s what you can expect:\\n\\n1. In 60 days: We\\'ll send a detailed performance summary\\n2. In 30 days: We\\'ll share your renewal offer\\n3. No action needed right now — just wanted to keep you informed\\n\\nIn the meantime, here are a few ways to maximize your partnership:\\n- Submit deal registrations for active opportunities\\n- Plan your MDF activities for next quarter\\n- Complete any pending certifications\\n\\nBest regards,\\nPartner Program Team\\nnavitools.net' }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "slack-90day",
+      "name": "Slack - 90 Day Notice",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1250, 830],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_OPS_CHANNEL",
+        "text": "=:bell: *Agreement Renewing in {{ $json.daysUntilExpiry }} Days*\\n*Partner:* {{ $json.partnerName }} ({{ $json.companyName }})\\n*Tier:* {{ $json.tier }} | *Region:* {{ $json.region }}\\n*Agreement:* {{ $json.agreementId }}\\n*Expires:* {{ $json.agreementEndDate }}\\n\\n:information_source: Early notification sent to partner. No action required.",
+        "username": "Partner Lifecycle Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "send-60day",
+      "name": "Send - 60 Day Performance Summary",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1250, 560],
+      "parameters": {
+        "fromEmail": "partnerprogram@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'Your Partner Performance Summary — Renewal in ' + $json.daysUntilExpiry + ' Days' }}",
+        "text": "={{ 'Dear ' + $json.partnerName + ',\\n\\nYour partner agreement (' + $json.agreementId + ') will renew in approximately ' + $json.daysUntilExpiry + ' days. Here\\'s a quick summary of your partnership metrics:\\n\\n*Partner Performance Summary*\\n- Annual Revenue: $' + $json.annualRevenue + '\\n- Deals Registered: ' + $json.dealsRegistered + '\\n- MDF Utilization: $' + $json.mdfUtilization + '\\n- Training Completed: ' + $json.trainingCompleted + ' courses\\n- Certifications Held: ' + $json.certificationsHeld + '\\n- Portal Engagement: ' + $json.portalLogins + ' logins\\n\\n*Renewal Requirements for ' + $json.tier + ' Tier:*\\nKeep these metrics strong over the next 60 days to ensure smooth renewal.\\n\\nIn 30 days, you will receive your formal renewal offer.\\n\\nQuestions? Contact your Channel Manager.\\n\\nBest regards,\\nPartner Program Team\\nnavitools.net' }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "slack-60day",
+      "name": "Slack - 60 Day Notice",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1250, 690],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_OPS_CHANNEL",
+        "text": "=:mega: *60 Day Renewal Notice Sent*\\n*Partner:* {{ $json.partnerName }} ({{ $json.companyName }})\\n*Agreement:* {{ $json.agreementId }}\\n*Expires:* {{ $json.agreementEndDate }} ({{ $json.daysUntilExpiry }} days)\\n*Tier:* {{ $json.tier }}\\n*Revenue:* ${{ $json.annualRevenue }} | *Deals:* {{ $json.dealsRegistered }}\\n\\n:bar_chart: Performance summary sent to partner.",
+        "username": "Partner Lifecycle Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "http-check-perf",
+      "name": "HTTP - Check Partner Performance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://partner.navitools.net/api/partners/' + $json.partnerId + '/performance' }}",
+        "options": {},
+        "sendBody": false,
+        "bodyParameters": {}
+      }
+    },
+    {
+      "id": "set-score",
+      "name": "Compute Renewal Score",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1450, 300],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "revenueScore",
+              "value": "={{ Number($json.annualRevenue) >= 200000 ? 30 : (Number($json.annualRevenue) >= 50000 ? 20 : (Number($json.annualRevenue) >= 10000 ? 10 : 0)) }}"
+            },
+            {
+              "name": "dealsScore",
+              "value": "={{ Number($json.dealsRegistered) >= 15 ? 25 : (Number($json.dealsRegistered) >= 5 ? 15 : (Number($json.dealsRegistered) >= 1 ? 8 : 0)) }}"
+            },
+            {
+              "name": "trainingScore",
+              "value": "={{ Number($json.trainingCompleted) >= 10 ? 15 : (Number($json.trainingCompleted) >= 5 ? 10 : (Number($json.trainingCompleted) >= 1 ? 5 : 0)) }}"
+            },
+            {
+              "name": "certScore",
+              "value": "={{ Number($json.certificationsHeld) >= 2 ? 15 : (Number($json.certificationsHeld) >= 1 ? 10 : 0) }}"
+            },
+            {
+              "name": "engagementScore",
+              "value": "={{ Number($json.portalLogins) >= 20 ? 15 : (Number($json.portalLogins) >= 10 ? 10 : (Number($json.portalLogins) >= 1 ? 5 : 0)) }}"
+            }
+          ],
+          "string": [
+            {
+              "name": "totalRenewalScore",
+              "value": "={{ Number($json.revenueScore) + Number($json.dealsScore) + Number($json.trainingScore) + Number($json.certScore) + Number($json.engagementScore) }}"
+            },
+            {
+              "name": "renewalRecommendation",
+              "value": "={{ (Number($json.revenueScore) + Number($json.dealsScore) + Number($json.trainingScore) + Number($json.certScore) + Number($json.engagementScore)) >= 70 ? 'Auto-Renew' : 'Manual Review' }}"
+            },
+            {
+              "name": "scoreBreakdown",
+              "value": "={{ 'Revenue=' + $json.annualRevenue + ' ($' + $json.revenueScore + '/30), Deals=' + $json.dealsRegistered + ' ($' + $json.dealsScore + '/25), Training=' + $json.trainingCompleted + 'hrs ($' + $json.trainingScore + '/15), Certs=' + $json.certificationsHeld + ' ($' + $json.certScore + '/15), Engagement=' + $json.portalLogins + ' logins ($' + $json.engagementScore + '/15)' }}"
+            }
+          ]
+        },
+        "options": {
+          "include": "all"
+        }
+      }
+    },
+    {
+      "id": "check-renewal",
+      "name": "Auto-Renew Eligible?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1650, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "fieldName": "renewalRecommendation",
+              "operator": "equal",
+              "value": "Auto-Renew"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "send-renewal-offer",
+      "name": "Send - Renewal Offer",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1850, 140],
+      "parameters": {
+        "fromEmail": "partnerprogram@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'Your Partner Agreement Renewal Offer — ' + $json.agreementId }}",
+        "text": "={{ 'Dear ' + $json.partnerName + ',\\n\\nGreat news! Based on your strong partnership performance (Score: ' + $json.totalRenewalScore + '/100), we are pleased to present your renewal offer for the ' + $json.agreementId + ' agreement.\\n\\n*Renewal Terms:*\\n- Partner: ' + $json.companyName + '\\n- Current Tier: ' + $json.tier + '\\n- Current Region: ' + $json.region + '\\n- Renewal Term: 12 months\\n\\n*Your Performance Highlights:*\\n' + $json.scoreBreakdown.replace(/, /g, '\\n') + '\\n\\n*Next Steps:*\\n1. Review the renewal agreement: https://partner.navitools.net/renew/' + $json.agreementId + '\\n2. E-sign by your agreement end date (' + $json.agreementEndDate + ')\\n3. Continue doing great work!\\n\\nYour Channel Manager will reach out to discuss any questions.\\n\\nWelcome to another great year of partnership!\\n\\nBest regards,\\nPartner Program Team\\nnavitools.net' }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "slack-auto-renew",
+      "name": "Slack - Auto-Renewed",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1850, 280],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_OPS_CHANNEL",
+        "text": "=:white_check_mark: *Partner Auto-Renewed*\\n*Partner:* {{ $json.partnerName }} ({{ $json.companyName }})\\n*Agreement:* {{ $json.agreementId }}\\n*Tier:* {{ $json.tier }} | *Score:* {{ $json.totalRenewalScore }}/100\\n*Revenue:* ${{ $json.annualRevenue }} | *Deals:* {{ $json.dealsRegistered }}\\n\\n:inbox_tray: Renewal offer sent to {{ $json.partnerEmail }}\\n*Breakdown:* {{ $json.scoreBreakdown }}",
+        "username": "Partner Lifecycle Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "set-renewed",
+      "name": "Set - Mark as Renewed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1850, 400],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "renewalStatus",
+              "value": "Offer Sent — Awaiting Signature"
+            },
+            {
+              "name": "status",
+              "value": "Renewal In Progress"
+            },
+            {
+              "name": "renewalScore",
+              "value": "={{ $json.totalRenewalScore }}"
+            }
+          ]
+        },
+        "options": {
+          "include": "all"
+        }
+      }
+    },
+    {
+      "id": "send-review-needed",
+      "name": "Send - Performance Warning (Manual Review)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1850, 560],
+      "parameters": {
+        "fromEmail": "partnerprogram@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'Action Needed: Your Partner Agreement Renewal Requires Review — ' + $json.agreementId }}",
+        "text": "={{ 'Dear ' + $json.partnerName + ',\\n\\nYour partner agreement (' + $json.agreementId + ') is approaching its expiration date of ' + $json.agreementEndDate + '.\\n\\nBased on your current partnership metrics, we need to discuss your renewal before proceeding:\\n\\n*Performance Summary:*\\n' + $json.scoreBreakdown.replace(/, /g, '\\n') + '\\n\\n*Total Score: ' + $json.totalRenewalScore + '/100*\\n\\nTo improve your renewal readiness, consider:\\n- Increase deal registration activity\\n- Complete more training courses\\n- Utilize your MDF budget\\n- Obtain additional certifications\\n\\nYour Channel Manager will be in touch to discuss next steps and develop a plan to strengthen your partnership for renewal.\\n\\nBest regards,\\nPartner Program Team\\nnavitools.net' }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "slack-needs-review",
+      "name": "Slack - Needs Manual Review",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1850, 690],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_OPS_CHANNEL",
+        "text": "=:warning: *Partner Renewal Needs Manual Review*\\n*Partner:* {{ $json.partnerName }} ({{ $json.companyName }})\\n*Agreement:* {{ $json.agreementId }}\\n*Tier:* {{ $json.tier }} | *Score:* {{ $json.totalRenewalScore }}/100\\n*Expires:* {{ $json.agreementEndDate }} ({{ $json.daysUntilExpiry }} days)\\n*Revenue:* ${{ $json.annualRevenue }} | *Deals:* {{ $json.dealsRegistered }}\\n\\n:mag: *Review Required* — Partner below auto-renewal threshold\\n*Breakdown:* {{ $json.scoreBreakdown }}\\n\\n:point_right: Review at: https://partner.navitools.net/renewals/{{ $json.agreementId }}",
+        "username": "Partner Lifecycle Bot",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "set-review",
+      "name": "Set - Mark for Manual Review",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1850, 820],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "renewalStatus",
+              "value": "Manual Review Required"
+            },
+            {
+              "name": "status",
+              "value": "Pending Review"
+            },
+            {
+              "name": "renewalScore",
+              "value": "={{ $json.totalRenewalScore }}"
+            }
+          ]
+        },
+        "options": {
+          "include": "all"
+        }
+      }
+    },
+    {
+      "id": "sheet-log",
+      "name": "Google Sheets - Log Renewal Event",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2050, 400],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "range": "RenewalLog!A:O",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $json.partnerName }}",
+            "companyName": "={{ $json.companyName }}",
+            "agreementId": "={{ $json.agreementId }}",
+            "tier": "={{ $json.tier }}",
+            "region": "={{ $json.region }}",
+            "daysUntilExpiry": "={{ $json.daysUntilExpiry }}",
+            "annualRevenue": "={{ $json.annualRevenue }}",
+            "dealsRegistered": "={{ $json.dealsRegistered }}",
+            "renewalScore": "={{ $json.totalRenewalScore }}",
+            "renewalStatus": "={{ $json.renewalStatus }}",
+            "recommendation": "={{ $json.renewalRecommendation || 'N/A' }}",
+            "checkedAt": "={{ $json.checkedAt }}",
+            "partnerEmail": "={{ $json.partnerEmail }}"
+          }
+        },
+        "options": {
+          "cellFormat": "strings",
+          "handlingExtraData": "insertInNewColumn"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2250, 400],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, agreementId: $json.agreementId, partnerName: $json.partnerName, renewalStatus: $json.renewalStatus, renewalScore: $json.totalRenewalScore, daysUntilExpiry: $json.daysUntilExpiry, recommendation: $json.renewalRecommendation || 'N/A', checkedAt: $json.checkedAt }) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Schedule - Weekly Renewal Check": {
+      "main": [
+        [{"node": "Merge Triggers", "type": "main", "index": 0}]
+      ]
+    },
+    "Webhook - Manual Trigger": {
+      "main": [
+        [{"node": "Merge Triggers", "type": "main", "index": 0}]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [{"node": "Format Agreement Data", "type": "main", "index": 0}]
+      ]
+    },
+    "Format Agreement Data": {
+      "main": [
+        [{"node": "Agreement Expired?", "type": "main", "index": 0}]
+      ]
+    },
+    "Agreement Expired?": {
+      "main": [
+        [{"node": "Set - Mark as Expired", "type": "main", "index": 0}],
+        [{"node": "Urgency Check (30/60/90 Days)", "type": "main", "index": 1}]
+      ]
+    },
+    "Set - Mark as Expired": {
+      "main": [
+        [{"node": "Slack - Agreement Expired", "type": "main", "index": 0}]
+      ]
+    },
+    "Slack - Agreement Expired": {
+      "main": [
+        [{"node": "Send - Agreement Expired Notice", "type": "main", "index": 0}]
+      ]
+    },
+    "Send - Agreement Expired Notice": {
+      "main": [
+        [{"node": "Google Sheets - Log Renewal Event", "type": "main", "index": 0}]
+      ]
+    },
+    "Urgency Check (30/60/90 Days)": {
+      "main": [
+        [{"node": "HTTP - Check Partner Performance", "type": "main", "index": 0}],
+        [{"node": "Send - 60 Day Performance Summary", "type": "main", "index": 1}],
+        [{"node": "Send - 90 Day Renewal Notice", "type": "main", "index": 2}]
+      ]
+    },
+    "Send - 60 Day Performance Summary": {
+      "main": [
+        [{"node": "Slack - 60 Day Notice", "type": "main", "index": 0}]
+      ]
+    },
+    "Slack - 60 Day Notice": {
+      "main": [
+        [{"node": "Google Sheets - Log Renewal Event", "type": "main", "index": 0}]
+      ]
+    },
+    "Send - 90 Day Renewal Notice": {
+      "main": [
+        [{"node": "Slack - 90 Day Notice", "type": "main", "index": 0}]
+      ]
+    },
+    "Slack - 90 Day Notice": {
+      "main": [
+        [{"node": "Google Sheets - Log Renewal Event", "type": "main", "index": 0}]
+      ]
+    },
+    "HTTP - Check Partner Performance": {
+      "main": [
+        [{"node": "Compute Renewal Score", "type": "main", "index": 0}]
+      ]
+    },
+    "Compute Renewal Score": {
+      "main": [
+        [{"node": "Auto-Renew Eligible?", "type": "main", "index": 0}]
+      ]
+    },
+    "Auto-Renew Eligible?": {
+      "main": [
+        [{"node": "Send - Renewal Offer", "type": "main", "index": 0}],
+        [{"node": "Send - Performance Warning (Manual Review)", "type": "main", "index": 1}]
+      ]
+    },
+    "Send - Renewal Offer": {
+      "main": [
+        [{"node": "Slack - Auto-Renewed", "type": "main", "index": 0}]
+      ]
+    },
+    "Slack - Auto-Renewed": {
+      "main": [
+        [{"node": "Set - Mark as Renewed", "type": "main", "index": 0}]
+      ]
+    },
+    "Set - Mark as Renewed": {
+      "main": [
+        [{"node": "Google Sheets - Log Renewal Event", "type": "main", "index": 0}]
+      ]
+    },
+    "Send - Performance Warning (Manual Review)": {
+      "main": [
+        [{"node": "Slack - Needs Manual Review", "type": "main", "index": 0}]
+      ]
+    },
+    "Slack - Needs Manual Review": {
+      "main": [
+        [{"node": "Set - Mark for Manual Review", "type": "main", "index": 0}]
+      ]
+    },
+    "Set - Mark for Manual Review": {
+      "main": [
+        [{"node": "Google Sheets - Log Renewal Event", "type": "main", "index": 0}]
+      ]
+    },
+    "Google Sheets - Log Renewal Event": {
+      "main": [
+        [{"node": "Respond to Webhook", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "pinData": {},
+  "versionId": "1.0",
+  "active": false,
+  "settings": {},
+  "tags": [
+    "partner-renewal",
+    "agreement-lifecycle",
+    "partner-lifecycle",
+    "auto-renewal",
+    "partner-ops"
+  ]
+}
