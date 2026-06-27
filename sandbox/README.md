@@ -44,4 +44,4 @@ The channel problem it could solve
 |------------|------|-------------|
 | 2026-06-21 | PIRE | Partner Incentive & Rebate Engine — tiered rebates, MDF claims, payout automation |
 | 2026-06-23 | PCO | Partner Co-Sell Orchestrator — multi-party co-sell deal orchestration with credit splitting, partner matching, and pipeline dashboards |
-| 2026-06-25 | CHAMP | Channel Health & Audit Monitoring Platform — automated compliance auditing, multi-factor scoring, tier promotion/demotion |
+| 2026-06-27 | PRISM | Partner Risk & Intelligence Scoring Matrix — AI-powered churn prediction, growth forecasting, and intervention playbooks for channel partner ecosystems |
