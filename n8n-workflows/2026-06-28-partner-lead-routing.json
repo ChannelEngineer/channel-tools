@@ -1,0 +1,483 @@
+{
+  "name": "Partner Lead Routing & Distribution",
+  "nodes": [
+    {
+      "id": "webhook-lead-inbound",
+      "name": "Webhook - Lead Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "partner-lead-routing",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "partner-lead-routing-hook"
+    },
+    {
+      "id": "format-lead",
+      "name": "Format Lead Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "leadId",
+              "value": "={{ 'LD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase() }}"
+            },
+            {
+              "name": "leadSource",
+              "value": "={{ $json.body.leadSource || $json.body.source || 'web_form' }}"
+            },
+            {
+              "name": "companyName",
+              "value": "={{ $json.body.companyName || $json.body.company }}"
+            },
+            {
+              "name": "contactName",
+              "value": "={{ $json.body.contactName || $json.body.name }}"
+            },
+            {
+              "name": "contactEmail",
+              "value": "={{ $json.body.contactEmail || $json.body.email }}"
+            },
+            {
+              "name": "contactPhone",
+              "value": "={{ $json.body.contactPhone || $json.body.phone || '' }}"
+            },
+            {
+              "name": "dealValue",
+              "value": "={{ $json.body.dealValue || $json.body.estimatedValue || 0 }}"
+            },
+            {
+              "name": "productInterest",
+              "value": "={{ $json.body.productInterest || $json.body.product || $json.body.interest || '' }}"
+            },
+            {
+              "name": "industry",
+              "value": "={{ $json.body.industry || '' }}"
+            },
+            {
+              "name": "region",
+              "value": "={{ $json.body.region || $json.body.geography || $json.body.location || '' }}"
+            },
+            {
+              "name": "leadDescription",
+              "value": "={{ $json.body.leadDescription || $json.body.description || '' }}"
+            },
+            {
+              "name": "submittedAt",
+              "value": "={{ $json.body.submittedAt || Date.now() }}"
+            },
+            {
+              "name": "routingStatus",
+              "value": "Pending"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "classify-lead",
+      "name": "Classify Lead - High Value or Standard",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.industry }}",
+              "operation": "isEqual",
+              "value2": "Enterprise"
+            }
+          ],
+          "number": [
+            {
+              "value1": "={{ parseInt($json.dealValue) }}",
+              "operation": "largerEqual",
+              "value2": 50000
+            }
+          ]
+        },
+        "combinator": "or",
+        "options": {}
+      }
+    },
+    {
+      "id": "high-value-branch",
+      "name": "High-Value Lead - Notify Channel Manager",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 150],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "routingMethod",
+              "value": "Manual Review"
+            },
+            {
+              "name": "routingStatus",
+              "value": "Pending Review"
+            },
+            {
+              "name": "routingNote",
+              "value": "=High-value lead (${{ $json.dealValue }}) or Enterprise account — requires channel manager manual assignment"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "standard-branch",
+      "name": "Standard Lead - Route to Best-Fit Partner",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 450],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "routingMethod",
+              "value": "Auto-Route"
+            },
+            {
+              "name": "routingStatus",
+              "value": "Routed"
+            },
+            {
+              "name": "assignedPartner",
+              "value": "={{ $json.productInterest && $json.region ? $json.productInterest + ' - ' + $json.region : 'Best Available Partner' }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.assignedPartner ? 'partner+' + $json.assignedPartner.toLowerCase().replace(/[^a-z0-9]/g,'') + '@navitools.net' : 'channel@navitools.net' }}"
+            },
+            {
+              "name": "partnerName",
+              "value": "={{ $json.productInterest && $json.region ? $json.productInterest + ' Specialist - ' + $json.region : 'Best Available Partner' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-high-value",
+      "name": "Slack - Channel Manager High-Value Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1050, 150],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGERS_CHANNEL",
+        "text": "=:star2: High-Value Lead \\u2014 Needs Manual Assignment\\n*Lead ID:* {{ $json.leadId }}\\n*Company:* {{ $json.companyName }}\\n*Contact:* {{ $json.contactName }} ({{ $json.contactEmail }})\\n*Value:* \\u0024{{ $json.dealValue }}\\n*Product:* {{ $json.productInterest }}\\n*Industry:* {{ $json.industry }}\\n*Region:* {{ $json.region }}\\n*Source:* {{ $json.leadSource }}\\n\\n:arrow_right: Assign a partner at https://n8n.navitools.net/workflow/lead-assignment",
+        "username": "Lead Router",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-high-value-partner",
+      "name": "Email Lead Source - Acknowledgment",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1050, 50],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.contactEmail }}",
+        "subject": "=Thank You \\u2014 Lead Received ({{ $json.leadId }})",
+        "text": "=Hi {{ $json.contactName }},\\n\\nThank you for your interest. We've received your lead and our channel team will match you with the right partner.\\n\\nLead ID: {{ $json.leadId }}\\nCompany: {{ $json.companyName }}\\n\\nYou'll receive a follow-up from your assigned partner within 24 hours.\\n\\nBest,\\nChannel Team - NaviTools",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "slack-routed",
+      "name": "Slack - Partner Notified of New Lead",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1050, 350],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_LEADS_CHANNEL",
+        "text": "=:incoming_envelope: New Lead Routed to Partner\\n*Lead ID:* {{ $json.leadId }}\\n*Company:* {{ $json.companyName }}\\n*Contact:* {{ $json.contactName }}\\n*Product:* {{ $json.productInterest }}\\n*Region:* {{ $json.region }}\\n*Assigned To:* {{ $json.partnerName }}\\n*Value:* \\u0024{{ $json.dealValue }}",
+        "username": "Lead Router",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-routed-partner",
+      "name": "Email Partner - New Lead Assignment",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1050, 500],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=New Lead Assigned - {{ $json.companyName }} ({{ $json.leadId }})",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nA new lead has been routed to you based on your expertise and region.\\n\\n---\\nLead ID: {{ $json.leadId }}\\nCompany: {{ $json.companyName }}\\nContact: {{ $json.contactName }} \\u2014 {{ $json.contactEmail }}{{ $json.contactPhone ? ' \\u2014 ' + $json.contactPhone : '' }}\\nProduct Interest: {{ $json.productInterest }}\\nEstimated Value: \\u0024{{ $json.dealValue }}\\nIndustry: {{ $json.industry }}\\nRegion: {{ $json.region }}\\n---\\n\\nPlease contact the prospect within 24 hours. If you are unable to pursue this lead, please decline via the partner portal so it can be reassigned.\\n\\nBest,\\nChannel Team - NaviTools",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "log-high-value",
+      "name": "Log to Sheets (High-Value - Pending)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1250, 150],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "LeadRouting",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Lead ID": "={{ $json.leadId }}",
+            "Company": "={{ $json.companyName }}",
+            "Contact": "={{ $json.contactName }}",
+            "Email": "={{ $json.contactEmail }}",
+            "Value": "={{ $json.dealValue }}",
+            "Product": "={{ $json.productInterest }}",
+            "Industry": "={{ $json.industry }}",
+            "Region": "={{ $json.region }}",
+            "Source": "={{ $json.leadSource }}",
+            "Routing Method": "Manual Review",
+            "Status": "Pending Review",
+            "Assigned Partner": "",
+            "Submitted At": "={{ $json.submittedAt }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "log-routed",
+      "name": "Log to Sheets (Routed)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1250, 450],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "LeadRouting",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Lead ID": "={{ $json.leadId }}",
+            "Company": "={{ $json.companyName }}",
+            "Contact": "={{ $json.contactName }}",
+            "Email": "={{ $json.contactEmail }}",
+            "Value": "={{ $json.dealValue }}",
+            "Product": "={{ $json.productInterest }}",
+            "Industry": "={{ $json.industry }}",
+            "Region": "={{ $json.region }}",
+            "Source": "={{ $json.leadSource }}",
+            "Routing Method": "Auto-Route",
+            "Status": "Routed",
+            "Assigned Partner": "={{ $json.assignedPartner }}",
+            "Submitted At": "={{ $json.submittedAt }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "respond-high-value",
+      "name": "Return Response (Pending Review)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 150],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"pending_review\",\"leadId\":\"{{ $json.leadId }}\",\"message\":\"High-value lead received. A channel manager will assign the best-fit partner within 24 hours.\"}"
+      }
+    },
+    {
+      "id": "respond-routed",
+      "name": "Return Response (Routed)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 450],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"routed\",\"leadId\":\"{{ $json.leadId }}\",\"assignedPartner\":\"{{ $json.partnerName }}\",\"message\":\"Lead has been routed to the best-fit partner.\"}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Lead Inbound": {
+      "main": [
+        [
+          {
+            "node": "Format Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Classify Lead - High Value or Standard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Lead - High Value or Standard": {
+      "main": [
+        [
+          {
+            "node": "High-Value Lead - Notify Channel Manager",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Standard Lead - Route to Best-Fit Partner",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "High-Value Lead - Notify Channel Manager": {
+      "main": [
+        [
+          {
+            "node": "Slack - Channel Manager High-Value Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Channel Manager High-Value Alert": {
+      "main": [
+        [
+          {
+            "node": "Email Lead Source - Acknowledgment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Lead Source - Acknowledgment": {
+      "main": [
+        [
+          {
+            "node": "Log to Sheets (High-Value - Pending)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Sheets (High-Value - Pending)": {
+      "main": [
+        [
+          {
+            "node": "Return Response (Pending Review)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Standard Lead - Route to Best-Fit Partner": {
+      "main": [
+        [
+          {
+            "node": "Slack - Partner Notified of New Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Partner Notified of New Lead": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - New Lead Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - New Lead Assignment": {
+      "main": [
+        [
+          {
+            "node": "Log to Sheets (Routed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Sheets (Routed)": {
+      "main": [
+        [
+          {
+            "node": "Return Response (Routed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Denver",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "tags": [
+    {
+      "name": "channel"
+    },
+    {
+      "name": "leads"
+    },
+    {
+      "name": "partner-routing"
+    }
+  ]
+}
