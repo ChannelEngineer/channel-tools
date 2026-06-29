@@ -44,4 +44,5 @@ The channel problem it could solve
 |------------|------|-------------|
 | 2026-06-21 | PIRE | Partner Incentive & Rebate Engine — tiered rebates, MDF claims, payout automation |
 | 2026-06-23 | PCO | Partner Co-Sell Orchestrator — multi-party co-sell deal orchestration with credit splitting, partner matching, and pipeline dashboards |
-| 2026-06-27 | PRISM | Partner Risk & Intelligence Scoring Matrix — AI-powered churn prediction, growth forecasting, and intervention playbooks for channel partner ecosystems |
+|| 2026-06-27 | PRISM | Partner Risk & Intelligence Scoring Matrix — AI-powered churn prediction, growth forecasting, and intervention playbooks for channel partner ecosystems |
+|| 2026-06-29 | PACE | Partner Co-Marketing Campaign Engine — end-to-end campaign lifecycle with MDF budget allocation, ROI measurement, and cross-campaign performance benchmarking |
