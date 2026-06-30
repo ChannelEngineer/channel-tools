@@ -1,0 +1,945 @@
+{
+  "name": "Channel Deal Conflict Detection & Resolution",
+  "nodes": [
+    {
+      "id": "webhook-deal-registration",
+      "name": "Webhook - Deal Registration Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "deal-conflict-resolution",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "deal-conflict-resolution-hook"
+    },
+    {
+      "id": "format-deal-reg",
+      "name": "Format Deal Registration Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "regId",
+              "value": "={{ 'DR-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase() }}"
+            },
+            {
+              "name": "partnerId",
+              "value": "={{ $json.body.partnerId || $json.body.partner_id || '' }}"
+            },
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName || $json.body.partner_name || '' }}"
+            },
+            {
+              "name": "partnerTier",
+              "value": "={{ $json.body.partnerTier || $json.body.tier || 'Authorized' }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.body.partnerEmail || $json.body.email || '' }}"
+            },
+            {
+              "name": "customerCompany",
+              "value": "={{ $json.body.customerCompany || $json.body.company || $json.body.customer_name || '' }}"
+            },
+            {
+              "name": "customerDomain",
+              "value": "={{ $json.body.customerDomain || $json.body.domain || '' }}"
+            },
+            {
+              "name": "customerContact",
+              "value": "={{ $json.body.customerContact || $json.body.contact || '' }}"
+            },
+            {
+              "name": "customerEmail",
+              "value": "={{ $json.body.customerEmail || '' }}"
+            },
+            {
+              "name": "dealValue",
+              "value": "={{ $json.body.dealValue || $json.body.value || $json.body.estimated_value || 0 }}"
+            },
+            {
+              "name": "product",
+              "value": "={{ $json.body.product || $json.body.productName || '' }}"
+            },
+            {
+              "name": "region",
+              "value": "={{ $json.body.region || $json.body.geography || '' }}"
+            },
+            {
+              "name": "description",
+              "value": "={{ $json.body.description || '' }}"
+            },
+            {
+              "name": "submittedAt",
+              "value": "={{ $json.body.submittedAt || Date.now() }}"
+            },
+            {
+              "name": "registrationStatus",
+              "value": "Pending"
+            },
+            {
+              "name": "conflictDetected",
+              "value": "false"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "simulate-existing-check",
+      "name": "Lookup Existing Registrations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://sheets.googleapis.com/v4/spreadsheets/YOUR_GOOGLE_SHEET_ID/values/DealRegistrations!A:I?key=YOUR_GOOGLE_API_KEY' }}",
+        "options": {
+          "timeout": 10000
+        },
+        "sendQuery": false,
+        "sendBody": false,
+        "sendHeaders": false
+      },
+      "credentials": {
+        "httpRequest": "YOUR_HTTP_REQUEST_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "detect-conflict",
+      "name": "Detect Conflict?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.existingRegId || '' }}",
+              "operation": "isEmpty",
+              "value2": ""
+            }
+          ]
+        },
+        "combinator": "and",
+        "options": {}
+      }
+    },
+    {
+      "id": "no-conflict-branch",
+      "name": "No Conflict - Approve Registration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1050, 100],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "registrationStatus",
+              "value": "Approved"
+            },
+            {
+              "name": "resolutionMethod",
+              "value": "Auto-Approved"
+            },
+            {
+              "name": "resolutionNote",
+              "value": "=No deal registration conflict detected. Registration approved for {{ $json.partnerName }}."
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "conflict-status-set",
+      "name": "Conflict Detected - Set Status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1050, 500],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "conflictDetected",
+              "value": "true"
+            },
+            {
+              "name": "existingPartnerName",
+              "value": "={{ $json.body.existingPartnerName || 'Existing Partner' }}"
+            },
+            {
+              "name": "existingPartnerTier",
+              "value": "={{ $json.body.existingTier || 'Gold' }}"
+            },
+            {
+              "name": "existingPartnerEmail",
+              "value": "={{ $json.body.existingPartnerEmail || '' }}"
+            },
+            {
+              "name": "existingRegId",
+              "value": "={{ $json.body.existingRegId || 'Unknown' }}"
+            },
+            {
+              "name": "conflictType",
+              "value": "Company Match"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "resolve-tier-rule",
+      "name": "Resolve by Tier Priority Rule",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 500],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.partnerTier }}",
+              "operation": "isEqual",
+              "value2": "Platinum"
+            },
+            {
+              "value1": "={{ $json.existingPartnerTier }}",
+              "operation": "notEqual",
+              "value2": "Platinum"
+            }
+          ],
+          "number": []
+        },
+        "combinator": "and",
+        "options": {}
+      }
+    },
+    {
+      "id": "new-partner-wins-tier",
+      "name": "New Partner Wins (Higher Tier)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1450, 400],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "resolutionMethod",
+              "value": "Tier Priority - New Partner Wins"
+            },
+            {
+              "name": "registrationStatus",
+              "value": "Approved"
+            },
+            {
+              "name": "winnerPartnerName",
+              "value": "={{ $json.partnerName }}"
+            },
+            {
+              "name": "winnerPartnerEmail",
+              "value": "={{ $json.partnerEmail }}"
+            },
+            {
+              "name": "loserPartnerName",
+              "value": "={{ $json.existingPartnerName }}"
+            },
+            {
+              "name": "resolutionNote",
+              "value": "={{ $json.partnerName + ' (' + $json.partnerTier + ') has higher tier priority than ' + $json.existingPartnerName + ' (' + $json.existingPartnerTier + '). Deal reassigned.' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "existing-or-manual",
+      "name": "Existing Holds or Tie?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 600],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.existingPartnerTier }}",
+              "operation": "isEqual",
+              "value2": "={{ $json.partnerTier }}"
+            }
+          ]
+        },
+        "combinator": "and",
+        "options": {}
+      }
+    },
+    {
+      "id": "existing-partner-wins",
+      "name": "Existing Partner Wins (Higher or Equal Tier)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1650, 700],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "resolutionMethod",
+              "value": "Existing Partner Retains"
+            },
+            {
+              "name": "registrationStatus",
+              "value": "Rejected"
+            },
+            {
+              "name": "winnerPartnerName",
+              "value": "={{ $json.existingPartnerName }}"
+            },
+            {
+              "name": "winnerPartnerEmail",
+              "value": "={{ $json.existingPartnerEmail || 'channel@navitools.net' }}"
+            },
+            {
+              "name": "loserPartnerName",
+              "value": "={{ $json.partnerName }}"
+            },
+            {
+              "name": "resolutionNote",
+              "value": "={{ $json.existingPartnerName + ' (' + $json.existingPartnerTier + ') retains the deal. ' + $json.partnerName + ' (' + $json.partnerTier + ') has equal or lower priority.' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "same-tier-escalate",
+      "name": "Same Tier - Escalate to Channel Manager",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1650, 500],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "resolutionMethod",
+              "value": "Manual Escalation"
+            },
+            {
+              "name": "registrationStatus",
+              "value": "Pending Manual Review"
+            },
+            {
+              "name": "resolutionNote",
+              "value": "={{ $json.partnerName + ' (' + $json.partnerTier + ') and ' + $json.existingPartnerName + ' (' + $json.existingPartnerTier + ') are same tier. Escalated for manual resolution.' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-new-partner-wins",
+      "name": "Slack - New Partner Wins Conflict",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1650, 300],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGERS_CHANNEL",
+        "text": "=:trophy: Deal Conflict Resolved \\u2014 Tier Priority\\\\n*Registration:* {{ $json.regId }}\\\\n*Customer:* {{ $json.customerCompany }}\\\\n*Deal Value:* \\\\u0024{{ $json.dealValue }}\\\\n*WINNER:* {{ $json.winnerPartnerName }} ({{ $json.partnerTier }})\\\\n*LOSER:* {{ $json.loserPartnerName }} ({{ $json.existingPartnerTier }})\\\\n*Rule:* Higher tier partner awarded the deal\\\\n:arrow_right: Existing registration {{ $json.existingRegId }} will be revoked.",
+        "username": "Conflict Resolver",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-new-partner-wins",
+      "name": "Email Winner - Conflict Resolved (You Win)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1850, 300],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Deal Registration Approved \\u2014 {{ $json.regId }}",
+        "text": "=Hi {{ $json.partnerName }},\\\\n\\\\nYour deal registration for {{ $json.customerCompany }} has been APPROVED.\\\\n\\\\n---\\\\nRegistration ID: {{ $json.regId }}\\\\nCustomer: {{ $json.customerCompany }}\\\\nProduct: {{ $json.product }}\\\\nEstimated Value: \\\\u0024{{ $json.dealValue }}\\\\nRegion: {{ $json.region }}\\\\n---\\\\n\\\\nNote: This deal was previously registered by {{ $json.existingPartnerName }}. As a {{ $json.partnerTier }} partner, your registration takes priority and the previous registration has been revoked.\\\\n\\\\nPlease proceed with your engagement.\\\\n\\\\nBest,\\\\nChannel Team - NaviTools",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "slack-existing-wins",
+      "name": "Slack - Existing Retains Deal",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1850, 700],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGERS_CHANNEL",
+        "text": "=:shield: Deal Conflict \\u2014 Existing Partner Retains\\\\n*Registration:* {{ $json.regId }}\\\\n*Customer:* {{ $json.customerCompany }}\\\\n*Requesting Partner:* {{ $json.partnerName }} ({{ $json.partnerTier }})\\\\n*Existing Partner:* {{ $json.existingPartnerName }} ({{ $json.existingPartnerTier }})\\\\n*Resolution:* Existing partner retains \\u2014 requesting partner has equal or lower tier priority\\\\n*Status:* Registration rejected.",
+        "username": "Conflict Resolver",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-existing-loser",
+      "name": "Email Requesting Partner - Rejected (Conflict)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1850, 800],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Deal Registration \\u2014 Conflict Notice ({{ $json.regId }})",
+        "text": "=Hi {{ $json.partnerName }},\\\\n\\\\nUnfortunately, the deal registration for {{ $json.customerCompany }} could not be approved due to a conflict with an existing registration.\\\\n\\\\n---\\\\nRegistration ID: {{ $json.regId }}\\\\nCustomer: {{ $json.customerCompany }}\\\\nProduct: {{ $json.product }}\\\\nEstimated Value: \\\\u0024{{ $json.dealValue }}\\\\n---\\\\n\\\\nReason: {{ $json.existingPartnerName }} ({{ $json.existingPartnerTier }}) already holds this registration.\\\\n\\\\nIf you have a direct relationship with this customer, please contact your channel manager to discuss a co-sell arrangement.\\\\n\\\\nBest,\\\\nChannel Team - NaviTools",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "slack-escalate",
+      "name": "Slack - Escalate Same-Tier Conflict",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1850, 500],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGERS_CHANNEL",
+        "text": "=:rotating_light: SAME-TIER CONFLICT \\u2014 Manual Review Required\\\\n*Registration:* {{ $json.regId }}\\\\n*Customer:* {{ $json.customerCompany }}\\\\n*Product:* {{ $json.product }}\\\\n*Value:* \\\\u0024{{ $json.dealValue }}\\\\n*Partner A:* {{ $json.partnerName }} ({{ $json.partnerTier }}) \\u2014 NEW\\\\n*Partner B:* {{ $json.existingPartnerName }} ({{ $json.existingPartnerTier }}) \\u2014 EXISTING\\\\n*Existing Reg ID:* {{ $json.existingRegId }}\\\\n\\\\n:point_right: Resolve options at https://n8n.navitools.net\\\\n(1) First-registered retains, (2) Revenue split 50/50, (3) Both rejected, start co-sell",
+        "username": "Conflict Resolver",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-escalate-both",
+      "name": "Email Both Partners - Escalated",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [2050, 500],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Deal Registration \\u2014 Under Review ({{ $json.regId }})",
+        "text": "=Hi {{ $json.partnerName }},\\\\n\\\\nYour deal registration for {{ $json.customerCompany }} has been received, but another partner ({{ $json.existingPartnerName }}) has also registered the same deal.\\\\n\\\\n---\\\\nRegistration ID: {{ $json.regId }}\\\\nCustomer: {{ $json.customerCompany }}\\\\n---\\\\n\\\\nBecause both partners are at the same program tier ({{ $json.partnerTier }}), this has been escalated to a channel manager for resolution.\\\\n\\\\nYou will be notified once a decision has been made.\\\\n\\\\nBest,\\\\nChannel Team - NaviTools",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "log-no-conflict",
+      "name": "Log to Sheets (No Conflict)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1250, 100],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "DealRegistrations",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Registration ID": "={{ $json.regId }}",
+            "Partner Name": "={{ $json.partnerName }}",
+            "Partner Tier": "={{ $json.partnerTier }}",
+            "Partner Email": "={{ $json.partnerEmail }}",
+            "Customer Company": "={{ $json.customerCompany }}",
+            "Customer Domain": "={{ $json.customerDomain }}",
+            "Customer Contact": "={{ $json.customerContact }}",
+            "Deal Value": "={{ $json.dealValue }}",
+            "Product": "={{ $json.product }}",
+            "Region": "={{ $json.region }}",
+            "Status": "Approved",
+            "Conflict Detected": "No",
+            "Resolution": "Auto-Approved",
+            "Notes": "No conflict found",
+            "Submitted At": "={{ $json.submittedAt }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "respond-no-conflict",
+      "name": "Return Response (Approved)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 100],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"approved\",\"regId\":\"{{ $json.regId }}\",\"conflictDetected\":false,\"message\":\"Deal registration approved. No conflicts detected.\"}"
+      }
+    },
+    {
+      "id": "log-new-wins",
+      "name": "Log to Sheets (New Partner Wins)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2050, 300],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "DealRegistrations",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Registration ID": "={{ $json.regId }}",
+            "Partner Name": "={{ $json.winnerPartnerName }}",
+            "Partner Tier": "={{ $json.partnerTier }}",
+            "Partner Email": "={{ $json.winnerPartnerEmail }}",
+            "Customer Company": "={{ $json.customerCompany }}",
+            "Customer Domain": "={{ $json.customerDomain }}",
+            "Deal Value": "={{ $json.dealValue }}",
+            "Product": "={{ $json.product }}",
+            "Region": "={{ $json.region }}",
+            "Status": "Approved (Conflict)",
+            "Conflict Detected": "Yes",
+            "Resolution": "Tier Priority - New Wins",
+            "Notes": "={{ $json.resolutionNote }}",
+            "Overridden Reg ID": "={{ $json.existingRegId }}",
+            "Submitted At": "={{ $json.submittedAt }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "respond-new-wins",
+      "name": "Return Response (Approved - Conflict Resolved)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2250, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"approved\",\"regId\":\"{{ $json.regId }}\",\"conflictDetected\":true,\"conflictType\":\"CompanyMatch\",\"resolution\":\"TierPriority\",\"message\":\"{{ $json.resolutionNote }}\"}"
+      }
+    },
+    {
+      "id": "log-existing-wins",
+      "name": "Log to Sheets (Existing Retains)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2050, 700],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "DealRegistrations",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Registration ID": "={{ $json.regId }}",
+            "Partner Name": "={{ $json.partnerName }}",
+            "Partner Tier": "={{ $json.partnerTier }}",
+            "Partner Email": "={{ $json.partnerEmail }}",
+            "Customer Company": "={{ $json.customerCompany }}",
+            "Customer Domain": "={{ $json.customerDomain }}",
+            "Deal Value": "={{ $json.dealValue }}",
+            "Product": "={{ $json.product }}",
+            "Region": "={{ $json.region }}",
+            "Status": "Rejected (Conflict)",
+            "Conflict Detected": "Yes",
+            "Resolution": "Existing Partner Retains",
+            "Notes": "={{ $json.resolutionNote }}",
+            "Existing Reg ID": "={{ $json.existingRegId }}",
+            "Submitted At": "={{ $json.submittedAt }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "respond-existing-wins",
+      "name": "Return Response (Rejected - Conflict)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2250, 700],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"rejected\",\"regId\":\"{{ $json.regId }}\",\"conflictDetected\":true,\"conflictType\":\"CompanyMatch\",\"resolution\":\"ExistingRetains\",\"message\":\"{{ $json.resolutionNote }}\"}"
+      }
+    },
+    {
+      "id": "log-escalation",
+      "name": "Log to Sheets (Escalation)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2250, 500],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "ConflictEscalations",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Escalation ID": "={{ $json.regId }}",
+            "Requesting Partner": "={{ $json.partnerName }}",
+            "Requesting Tier": "={{ $json.partnerTier }}",
+            "Existing Partner": "={{ $json.existingPartnerName }}",
+            "Existing Tier": "={{ $json.existingPartnerTier }}",
+            "Customer Company": "={{ $json.customerCompany }}",
+            "Deal Value": "={{ $json.dealValue }}",
+            "Product": "={{ $json.product }}",
+            "Region": "={{ $json.region }}",
+            "Status": "Pending Manual Review",
+            "Existing Reg ID": "={{ $json.existingRegId }}",
+            "Submitted At": "={{ $json.submittedAt }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "respond-escalation",
+      "name": "Return Response (Manual Review)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2450, 500],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"pending_review\",\"regId\":\"{{ $json.regId }}\",\"conflictDetected\":true,\"conflictType\":\"CompanyMatch\",\"resolution\":\"ManualReview\",\"message\":\"Both partners are same tier. A channel manager will review and resolve within 24 hours.\"}"
+      }
+    },
+    {
+      "id": "slack-no-conflict",
+      "name": "Slack - Registration Approved",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1050, 0],
+      "parameters": {
+        "channel": "C_YOUR_PARTNER_LEADS_CHANNEL",
+        "text": "=:white_check_mark: Deal Registration Approved\\\\n*Registration:* {{ $json.regId }}\\\\n*Partner:* {{ $json.partnerName }} ({{ $json.partnerTier }})\\\\n*Customer:* {{ $json.customerCompany }}\\\\n*Product:* {{ $json.product }}\\\\n*Value:* \\\\u0024{{ $json.dealValue }}\\\\n*Region:* {{ $json.region }}\\\\n\\\\nNo conflicts detected \\u2014 auto-approved.",
+        "username": "Conflict Resolver",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Deal Registration Inbound": {
+      "main": [
+        [
+          {
+            "node": "Format Deal Registration Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Deal Registration Data": {
+      "main": [
+        [
+          {
+            "node": "Lookup Existing Registrations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Existing Registrations": {
+      "main": [
+        [
+          {
+            "node": "Detect Conflict?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Conflict?": {
+      "main": [
+        [
+          {
+            "node": "No Conflict - Approve Registration",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Conflict Detected - Set Status",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "No Conflict - Approve Registration": {
+      "main": [
+        [
+          {
+            "node": "Slack - Registration Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Registration Approved": {
+      "main": [
+        [
+          {
+            "node": "Log to Sheets (No Conflict)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Sheets (No Conflict)": {
+      "main": [
+        [
+          {
+            "node": "Return Response (Approved)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conflict Detected - Set Status": {
+      "main": [
+        [
+          {
+            "node": "Resolve by Tier Priority Rule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve by Tier Priority Rule": {
+      "main": [
+        [
+          {
+            "node": "New Partner Wins (Higher Tier)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Existing Holds or Tie?",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "New Partner Wins (Higher Tier)": {
+      "main": [
+        [
+          {
+            "node": "Slack - New Partner Wins Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - New Partner Wins Conflict": {
+      "main": [
+        [
+          {
+            "node": "Email Winner - Conflict Resolved (You Win)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Winner - Conflict Resolved (You Win)": {
+      "main": [
+        [
+          {
+            "node": "Log to Sheets (New Partner Wins)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Sheets (New Partner Wins)": {
+      "main": [
+        [
+          {
+            "node": "Return Response (Approved - Conflict Resolved)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Existing Holds or Tie?": {
+      "main": [
+        [
+          {
+            "node": "Same Tier - Escalate to Channel Manager",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Existing Partner Wins (Higher or Equal Tier)",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Same Tier - Escalate to Channel Manager": {
+      "main": [
+        [
+          {
+            "node": "Slack - Escalate Same-Tier Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Escalate Same-Tier Conflict": {
+      "main": [
+        [
+          {
+            "node": "Email Both Partners - Escalated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Both Partners - Escalated": {
+      "main": [
+        [
+          {
+            "node": "Log to Sheets (Escalation)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Sheets (Escalation)": {
+      "main": [
+        [
+          {
+            "node": "Return Response (Manual Review)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Existing Partner Wins (Higher or Equal Tier)": {
+      "main": [
+        [
+          {
+            "node": "Slack - Existing Retains Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Existing Retains Deal": {
+      "main": [
+        [
+          {
+            "node": "Email Requesting Partner - Rejected (Conflict)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Requesting Partner - Rejected (Conflict)": {
+      "main": [
+        [
+          {
+            "node": "Log to Sheets (Existing Retains)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Sheets (Existing Retains)": {
+      "main": [
+        [
+          {
+            "node": "Return Response (Rejected - Conflict)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Denver",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "tags": [
+    {
+      "name": "channel"
+    },
+    {
+      "name": "deal-registration"
+    },
+    {
+      "name": "conflict-resolution"
+    }
+  ]
+}
