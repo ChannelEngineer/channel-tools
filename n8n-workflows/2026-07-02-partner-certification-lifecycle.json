@@ -1,0 +1,741 @@
+{
+  "name": "Partner Certification Lifecycle Management",
+  "nodes": [
+    {
+      "id": "webhook-cert-inbound",
+      "name": "Webhook - Certification Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "partner-certification",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "partner-certification-hook"
+    },
+    {
+      "id": "format-cert-data",
+      "name": "Format Certification Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "certId",
+              "value": "={{ 'CERT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase() }}"
+            },
+            {
+              "name": "partnerId",
+              "value": "={{ $json.body.partnerId || $json.body.partner_id || '' }}"
+            },
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName || $json.body.partner_name || '' }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.body.partnerEmail || $json.body.email || '' }}"
+            },
+            {
+              "name": "partnerTier",
+              "value": "={{ $json.body.partnerTier || $json.body.tier || 'Authorized' }}"
+            },
+            {
+              "name": "certificationName",
+              "value": "={{ $json.body.certificationName || $json.body.cert_name || $json.body.certification || '' }}"
+            },
+            {
+              "name": "certificationType",
+              "value": "={{ $json.body.certificationType || $json.body.cert_type || 'technical' }}"
+            },
+            {
+              "name": "issueDate",
+              "value": "={{ $json.body.issueDate || $json.body.issue_date || Date.now() }}"
+            },
+            {
+              "name": "expiryDate",
+              "value": "={{ $json.body.expiryDate || $json.body.expiry_date || '' }}"
+            },
+            {
+              "name": "score",
+              "value": "={{ $json.body.score || $json.body.examScore || $json.body.exam_score || 0 }}"
+            },
+            {
+              "name": "status",
+              "value": "Pending"
+            },
+            {
+              "name": "action",
+              "value": "={{ $json.body.action || $json.body.event || 'new' }}"
+            },
+            {
+              "name": "trainingCompleted",
+              "value": "={{ $json.body.trainingCompleted || $json.body.training_completed || 'false' }}"
+            },
+            {
+              "name": "submittedAt",
+              "value": "={{ $json.body.submittedAt || Date.now() }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "daysUntilExpiry",
+              "value": "={{ $json.body.expiryDate ? Math.floor((new Date($json.body.expiryDate) - new Date()) / (1000 * 60 * 60 * 24)) : 365 }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "lookup-existing-certs",
+      "name": "Lookup Existing Certifications",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://sheets.googleapis.com/v4/spreadsheets/YOUR_GOOGLE_SHEET_ID/values/Certifications!A:L?key=***' }}",
+        "options": {
+          "timeout": 10000
+        },
+        "sendQuery": false,
+        "sendBody": false,
+        "sendHeaders": false
+      },
+      "credentials": {
+        "httpRequest": "YOUR_HTTP_REQUEST_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "is-new-certification",
+      "name": "New Certification?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "isEqual",
+              "value2": "new"
+            }
+          ]
+        },
+        "combinator": "and",
+        "options": {}
+      }
+    },
+    {
+      "id": "new-cert-active",
+      "name": "Set New Certification Active",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1050, 100],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Active"
+            },
+            {
+              "name": "certificationStatus",
+              "value": "Granted"
+            },
+            {
+              "name": "validityPeriod",
+              "value": "={{ $json.certificationType === 'technical' ? '12 months' : '24 months' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-new-cert",
+      "name": "Slack - New Certification Issued",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1250, 100],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGERS_CHANNEL",
+        "text": "=:certification: New Certification Issued\\\\n*Partner:* {{ $json.partnerName }}\\\\n*Certification:* {{ $json.certificationName }}\\\\n*Type:* {{ $json.certificationType }}\\\\n*Score:* {{ $json.score }}%\\\\n*Issue Date:* {{ $json.issueDate }}\\\\n*Expiry:* {{ $json.expiryDate || 'N/A' }}\\\\n*Cert ID:* {{ $json.certId }}\\\\n*Tier:* {{ $json.partnerTier }}",
+        "username": "Certification Manager",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-new-cert-welcome",
+      "name": "Email Partner - Certification Welcome",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1450, 100],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Congratulations! {{ $json.certificationName }} Certification Granted",
+        "text": "=Hi {{ $json.partnerName }},\\\n\\nCongratulations on earning your {{ $json.certificationName }} certification!\\n\\n---\\nCertification ID: {{ $json.certId }}\\nCertification: {{ $json.certificationName }}\\nType: {{ $json.certificationType }}\\nScore: {{ $json.score }}%\\nIssue Date: {{ $json.issueDate }}\\nExpiry Date: {{ $json.expiryDate || 'N/A' }}\\nValidity: {{ $json.validityPeriod }}\\n---\\n\\nWhat this means for you:\\n- {{ $json.certificationType === 'technical' ? 'Access to technical support escalations and advanced product features' : 'Eligibility for higher-tier program benefits and increased margins' }}\\n- Listing as a certified partner in the partner locator\\n- Invitation to certified-only partner events and webinars\\n\\nTo maintain your certification, please complete any required continuing education before the expiry date.\\n\\nBest,\\nChannel Team - NaviTools",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "log-new-cert-sheets",
+      "name": "Log New Certification to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1650, 100],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Certifications",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Cert ID": "={{ $json.certId }}",
+            "Partner ID": "={{ $json.partnerId }}",
+            "Partner Name": "={{ $json.partnerName }}",
+            "Partner Email": "={{ $json.partnerEmail }}",
+            "Partner Tier": "={{ $json.partnerTier }}",
+            "Certification Name": "={{ $json.certificationName }}",
+            "Certification Type": "={{ $json.certificationType }}",
+            "Issue Date": "={{ $json.issueDate }}",
+            "Expiry Date": "={{ $json.expiryDate || 'N/A' }}",
+            "Score": "={{ $json.score }}",
+            "Status": "Active",
+            "Training Completed": "={{ $json.trainingCompleted }}",
+            "Submitted At": "={{ $json.submittedAt }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "respond-new-cert",
+      "name": "Return Response (Cert Granted)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 100],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"granted\",\"certId\":\"{{ $json.certId }}\",\"certificationName\":\"{{ $json.certificationName }}\",\"partnerName\":\"{{ $json.partnerName }}\",\"expiryDate\":\"{{ $json.expiryDate }}\",\"message\":\"Certification granted successfully. Welcome to the {{ $json.certificationName }} program.\"}"
+      }
+    },
+    {
+      "id": "calculate-renewal-expiry",
+      "name": "Calculate Renewal Urgency",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1050, 500],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "expiryWarningLevel",
+              "value": "={{ $json.daysUntilExpiry <= 30 ? 'critical' : ($json.daysUntilExpiry <= 90 ? 'warning' : 'safe') }}"
+            },
+            {
+              "name": "existingCertId",
+              "value": "={{ $json.body.existingCertId || $json.body.existing_cert_id || '' }}"
+            },
+            {
+              "name": "existingScore",
+              "value": "={{ $json.body.existingScore || $json.body.existing_score || 0 }}"
+            },
+            {
+              "name": "certTenureMonths",
+              "value": "={{ $json.body.issueDate ? Math.floor((new Date() - new Date($json.body.issueDate)) / (1000 * 60 * 60 * 24 * 30)) : 12 }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "check-expiry-urgency",
+      "name": "Expiry Within 90 Days?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 500],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.daysUntilExpiry }}",
+              "operation": "smallerEqual",
+              "value2": 90
+            }
+          ]
+        },
+        "combinator": "and",
+        "options": {}
+      }
+    },
+    {
+      "id": "no-urgency-respond",
+      "name": "Return Response (No Action Needed)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 700],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"no_action_needed\",\"certId\":\"{{ $json.existingCertId }}\",\"daysUntilExpiry\":{{ $json.daysUntilExpiry }},\"message\":\"Certification is current. {{ $json.daysUntilExpiry }} days until expiry. No action required at this time.\"}"
+      }
+    },
+    {
+      "id": "check-renewal-eligibility",
+      "name": "Auto-Renew Eligible? (Score >= 70)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 500],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.score || $json.existingScore || 0 }}",
+              "operation": "largerEqual",
+              "value2": 70
+            }
+          ]
+        },
+        "combinator": "and",
+        "options": {}
+      }
+    },
+    {
+      "id": "auto-renew-set",
+      "name": "Set Auto-Renewal Status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1650, 400],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Renewed"
+            },
+            {
+              "name": "certificationStatus",
+              "value": "Auto-Renewed"
+            },
+            {
+              "name": "newExpiryDate",
+              "value": "={{ $json.certificationType === 'technical' ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : new Date(Date.now() + 730 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }}"
+            },
+            {
+              "name": "renewalMethod",
+              "value": "Auto-Renewed (Score >= 70)"
+            },
+            {
+              "name": "renewalNote",
+              "value": "=Partner scored {{ $json.score }}% on {{ $json.certificationName }}. Auto-renewed due to strong performance."
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-auto-renewed",
+      "name": "Slack - Certification Auto-Renewed",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1850, 400],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGERS_CHANNEL",
+        "text": "=:renew: Certification Auto-Renewed\\\\n*Partner:* {{ $json.partnerName }}\\\\n*Certification:* {{ $json.certificationName }}\\\\n*Score:* {{ $json.score }}%\\\\n*Previous Expiry:* {{ $json.body.expiryDate || 'N/A' }}\\\\n*New Expiry:* {{ $json.newExpiryDate }}\\\\n*Method:* Auto-Renewed (Score >= 70)\\\\n*Partner Tier:* {{ $json.partnerTier }}",
+        "username": "Certification Manager",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-auto-renewed",
+      "name": "Email Partner - Certification Renewed",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [2050, 400],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Your {{ $json.certificationName }} Certification Has Been Renewed",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nGreat news! Your {{ $json.certificationName }} certification has been automatically renewed based on your strong performance.\\n\\n---\\nCertification: {{ $json.certificationName }}\\nPrevious Expiry: {{ $json.body.expiryDate || 'N/A' }}\\nNew Expiry Date: {{ $json.newExpiryDate }}\\nScore: {{ $json.score }}%\\n---\\n\\nYour certification is now valid until {{ $json.newExpiryDate }}. No further action is needed at this time.\\n\\nKeep up the great work!\\n\\nBest,\\nChannel Team - NaviTools",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "manual-review-set",
+      "name": "Set Manual Review Status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1650, 600],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Pending Review"
+            },
+            {
+              "name": "certificationStatus",
+              "value": "Recertification Pending"
+            },
+            {
+              "name": "renewalMethod",
+              "value": "Manual Review Required"
+            },
+            {
+              "name": "renewalNote",
+              "value": "=Partner scored {{ $json.score }}% on {{ $json.certificationName }}. Below auto-renewal threshold (70%). Manual review required."
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-manual-review",
+      "name": "Slack - Escalate for Manual Review",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1850, 600],
+      "parameters": {
+        "channel": "C_YOUR_CHANNEL_MANAGERS_CHANNEL",
+        "text": "=:warning: Recertification Needs Manual Review\\\\n*Partner:* {{ $json.partnerName }}\\\\n*Certification:* {{ $json.certificationName }}\\\\n*Score:* {{ $json.score }}% (Threshold: 70%)\\\\n*Expiry:* {{ $json.body.expiryDate || 'N/A' }}\\\\n*Days Until Expiry:* {{ $json.daysUntilExpiry }}\\\\n*Partner Tier:* {{ $json.partnerTier }}\\\\n*Cert ID:* {{ $json.existingCertId }}\\\\n\\n:point_right: Review at https://n8n.navitools.net\\nOptions: (1) Approve renewal with conditions, (2) Require retraining, (3) Deny and start re-certification process",
+        "username": "Certification Manager",
+        "sendAsUser": false,
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": "YOUR_SLACK_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "email-manual-review",
+      "name": "Email Partner - Recertification Under Review",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [2050, 600],
+      "parameters": {
+        "fromEmail": "channel@navitools.net",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Your {{ $json.certificationName }} Recertification Is Under Review",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nYour {{ $json.certificationName }} certification is expiring soon ({{ $json.daysUntilExpiry }} days remaining) and your recertification request has been received.\\n\\n---\\nCertification: {{ $json.certificationName }}\\nCurrent Expiry: {{ $json.body.expiryDate || 'N/A' }}\\nYour Score: {{ $json.score }}%\\n---\\n\\nYour recertification is currently under review by the channel team. A channel manager will review your submission and get back to you within 2-3 business days.\\n\\nIn the meantime, if you'd like to improve your score, consider reviewing the training materials available in the partner portal.\\n\\nBest,\\nChannel Team - NaviTools",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": "YOUR_GMAIL_SMTP_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "log-renewal-sheets",
+      "name": "Log Renewal Activity to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2250, 500],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "CertificationRenewals",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Cert ID": "={{ $json.existingCertId || $json.certId }}",
+            "Partner ID": "={{ $json.partnerId }}",
+            "Partner Name": "={{ $json.partnerName }}",
+            "Partner Email": "={{ $json.partnerEmail }}",
+            "Certification Name": "={{ $json.certificationName }}",
+            "Score": "={{ $json.score }}",
+            "Previous Expiry": "={{ $json.body.expiryDate || 'N/A' }}",
+            "New Expiry": "={{ $json.newExpiryDate || 'Pending' }}",
+            "Status": "={{ $json.status }}",
+            "Renewal Method": "={{ $json.renewalMethod }}",
+            "Notes": "={{ $json.renewalNote }}",
+            "Processed At": "={{ Date.now() }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleSheets": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "respond-renewal-result",
+      "name": "Return Response (Renewal Result)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2450, 500],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"{{ $json.status }}\",\"certId\":\"{{ $json.existingCertId || $json.certId }}\",\"certificationName\":\"{{ $json.certificationName }}\",\"partnerName\":\"{{ $json.partnerName }}\",\"renewalMethod\":\"{{ $json.renewalMethod }}\",\"newExpiryDate\":\"{{ $json.newExpiryDate || 'Pending' }}\",\"message\":\"{{ $json.status === 'Renewed' ? 'Certification renewed successfully.' : 'Certification renewal under review. A channel manager will follow up.' }}\"}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Certification Inbound": {
+      "main": [
+        [
+          {
+            "node": "Format Certification Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Certification Data": {
+      "main": [
+        [
+          {
+            "node": "Lookup Existing Certifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Existing Certifications": {
+      "main": [
+        [
+          {
+            "node": "New Certification?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Certification?": {
+      "main": [
+        [
+          {
+            "node": "Set New Certification Active",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Calculate Renewal Urgency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set New Certification Active": {
+      "main": [
+        [
+          {
+            "node": "Slack - New Certification Issued",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - New Certification Issued": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - Certification Welcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - Certification Welcome": {
+      "main": [
+        [
+          {
+            "node": "Log New Certification to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log New Certification to Sheets": {
+      "main": [
+        [
+          {
+            "node": "Return Response (Cert Granted)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Renewal Urgency": {
+      "main": [
+        [
+          {
+            "node": "Expiry Within 90 Days?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expiry Within 90 Days?": {
+      "main": [
+        [
+          {
+            "node": "Auto-Renew Eligible? (Score >= 70)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Response (No Action Needed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Renew Eligible? (Score >= 70)": {
+      "main": [
+        [
+          {
+            "node": "Set Auto-Renewal Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Manual Review Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Auto-Renewal Status": {
+      "main": [
+        [
+          {
+            "node": "Slack - Certification Auto-Renewed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Certification Auto-Renewed": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - Certification Renewed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - Certification Renewed": {
+      "main": [
+        [
+          {
+            "node": "Log Renewal Activity to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Manual Review Status": {
+      "main": [
+        [
+          {
+            "node": "Slack - Escalate for Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Escalate for Manual Review": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - Recertification Under Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - Recertification Under Review": {
+      "main": [
+        [
+          {
+            "node": "Log Renewal Activity to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Renewal Activity to Sheets": {
+      "main": [
+        [
+          {
+            "node": "Return Response (Renewal Result)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Denver",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "tags": [
+    {
+      "name": "channel"
+    },
+    {
+      "name": "certification"
+    },
+    {
+      "name": "enablement"
+    }
+  ]
+}
