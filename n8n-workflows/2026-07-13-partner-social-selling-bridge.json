@@ -1,0 +1,477 @@
+{
+  "name": "BRIDGE - Partner Social Selling Alerts & Re-engagement",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "bridge-trigger",
+      "parameters": {
+        "path": "bridge",
+        "options": {}
+      },
+      "webhookDescription": {
+        "queryParameters": [],
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson",
+        "options": {
+          "responseHeaders": {
+            "entries": []
+          }
+        }
+      }
+    },
+    {
+      "id": "action-router",
+      "name": "Action Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "parameters": {
+        "conditions": {
+          "number": [],
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "share_recorded"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "share-positive-reinforcement",
+      "name": "Share Positive Reinforcement",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 200],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.shares_this_week }}",
+              "operation": "largerEqual",
+              "value2": 5
+            }
+          ],
+          "string": []
+        }
+      }
+    },
+    {
+      "id": "slack-top-seller",
+      "name": "Slack - Top Seller Shoutout",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [850, 150],
+      "parameters": {
+        "channelId": "C1234567890",
+        "text": "={{ \"🔥 *Social Selling Shoutout!* 🔥\\n\\n\" + $json.partner_name + \" just shared \\\"\" + $json.content_title + \"\\\" on \" + $json.platform + \"!\\n\\nThis is their \" + $json.shares_this_week + \"th share this week — keep it up!\" }}",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "slack-thanks-share",
+      "name": "Slack - Share Acknowledgment",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [850, 250],
+      "parameters": {
+        "channelId": "C1234567890",
+        "text": "={{ \"📣 \" + $json.partner_name + \" shared \\\"\" + $json.content_title + \"\\\" on \" + $json.platform + \". Total shares this week: \" + $json.shares_this_week }}",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "inactivity-check",
+      "name": "Inactivity Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 400],
+      "parameters": {
+        "conditions": {
+          "number": [],
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "inactivity_alert"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "slack-inactivity-alert",
+      "name": "Slack - Inactive Partner Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [850, 350],
+      "parameters": {
+        "channelId": "C1234567890",
+        "text": "={{ \"⏰ *Social Selling Inactivity Alert*\\n\\n\" + $json.partner_name + \" (\" + $json.partner_tier + \") hasn't shared any content in \" + $json.days_inactive + \" days.\\n\\n*Last share:* \" + $json.last_share_date + \"\\n*Previous weekly avg:* \" + $json.weekly_avg_shares + \" shares\\n\\nConsider reaching out with suggested content or a quick training refresher.\" }}",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "email-partner-engagement",
+      "name": "Email - Inactive Partner Nudge",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [850, 450],
+      "parameters": {
+        "fromEmail": "channel@vendor.com",
+        "toEmail": "={{ $json.partner_email }}",
+        "subject": "={{ \"Social Selling: Here's some fresh content to share!\" }}",
+        "text": "={{ \"Hi \" + $json.partner_name + \",\\n\\nWe noticed it's been \" + $json.days_inactive + \" days since you last shared any of our content on social media. No worries — we've got you covered with some fresh assets!\\n\\nHere are a few trending pieces your audience will love:\\n1. Top 5 Digital Transformation Trends for 2026\\n2. Case Study: MediCorp Achieves 40% Cost Reduction\\n3. Security Best Practices for Hybrid Work\\n\\nYou can find all of them in the partner portal under Content Library. Just copy the post, personalize it, and share!\\n\\nHappy sharing,\\nYour Channel Team\" }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "mdf-share-correlation",
+      "name": "MDF Share Correlation Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 500],
+      "parameters": {
+        "conditions": {
+          "number": [],
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "mdf_correlation"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "slack-mdf-correlation",
+      "name": "Slack - MDF Content Correlation",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [700, 500],
+      "parameters": {
+        "channelId": "C1234567890",
+        "text": "={{ \"📊 *Content Performance Alert*\\n\\nPartner \" + $json.partner_name + \" has shared \\\"\" + $json.content_title + \"\\\" \" + $json.share_count + \" times in the past 30 days with \" + $json.engagement_rate + \" avg engagement.\\n\\n*MDF spent on this campaign:* $\" + $json.mdf_spent + \"\\n*Pipeline generated:* $\" + $json.pipeline + \"\\n*Revenue attributed:* $\" + $json.revenue_attributed + \"\\n\\n**Attribution ratio:** \" + $json.attribution_ratio + \"\" }}",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "checklist-trigger",
+      "name": "Checklist Trigger",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 600],
+      "parameters": {
+        "conditions": {
+          "number": [],
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "checklist_completed"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "slack-checklist-audit",
+      "name": "Slack - Checklist Audit Log",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [700, 600],
+      "parameters": {
+        "channelId": "C1234567890",
+        "text": "={{ \"✅ *Onboarding Checklist Completed*\\n\\nPartner: \" + $json.partner_name + \"\\nTier: \" + $json.partner_tier + \"\\nCompleted by: \" + $json.completed_by + \"\\nDate: \" + $json.completed_date + \"\\nItems completed: \" + $json.items_completed + \"/\" + $json.total_items + \"\\n\\nStatus: \" + $json.status }}",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "checklist-google-sheets",
+      "name": "Sheets - Checklist Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [900, 600],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": "ChecklistAudit",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "partner_name": "={{ $json.partner_name }}",
+            "partner_tier": "={{ $json.partner_tier }}",
+            "completed_by": "={{ $json.completed_by }}",
+            "completed_date": "={{ $json.completed_date }}",
+            "items_completed": "={{ $json.items_completed }}",
+            "total_items": "={{ $json.total_items }}",
+            "status": "={{ $json.status }}",
+            "timestamp": "={{ $json.timestamp }}"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Action Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Router": {
+      "main": [
+        [
+          {
+            "node": "Share Positive Reinforcement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Inactivity Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MDF Share Correlation Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Checklist Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share Positive Reinforcement": {
+      "main": [
+        [
+          {
+            "node": "Slack - Top Seller Shoutout",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack - Share Acknowledgment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inactivity Check": {
+      "main": [
+        [
+          {
+            "node": "Slack - Inactive Partner Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MDF Share Correlation Check": {
+      "main": [
+        [
+          {
+            "node": "Slack - MDF Content Correlation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Inactive Partner Alert": {
+      "main": [
+        [
+          {
+            "node": "Email - Inactive Partner Nudge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Share Acknowledgment": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Top Seller Shoutout": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Inactive Partner Alert": {
+      "main": [
+        [
+          {
+            "node": "Email - Inactive Partner Nudge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Inactive Partner Nudge": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - MDF Content Correlation": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checklist Trigger": {
+      "main": [
+        [
+          {
+            "node": "Slack - Checklist Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sheets - Checklist Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Checklist Audit Log": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets - Checklist Log": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/New_York"
+  },
+  "staticData": null,
+  "pinData": {}
+}

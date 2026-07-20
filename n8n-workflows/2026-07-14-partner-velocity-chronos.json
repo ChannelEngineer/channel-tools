@@ -1,0 +1,1226 @@
+{
+  "name": "CHRONOS - Channel Partner Time-to-Value & Onboarding Velocity Tracker",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "chronos",
+      "parameters": {
+        "path": "chronos",
+        "options": {}
+      },
+      "webhookDescription": {
+        "queryParameters": [],
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson",
+        "options": {
+          "responseHeaders": {
+            "entries": []
+          }
+        }
+      }
+    },
+    {
+      "id": "action-router",
+      "name": "Action Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "parameters": {
+        "conditions": {
+          "number": [],
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "record_milestone"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "validate-milestone",
+      "name": "Validate Milestone Input",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 200],
+      "parameters": {
+        "conditions": {
+          "number": [],
+          "string": [
+            {
+              "value1": "={{ $json.milestone }}",
+              "operation": "inList",
+              "value2": "onboarding_started,onboarding_complete,first_training,first_certification,first_deal_registered,first_deal_won,first_mdf_claim,first_qbr_attended"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "set-defaults",
+      "name": "Set Defaults & Benchmarks",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 200],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "partner_tier",
+              "value": "={{ $json.tier || $json.partner_tier || 'authorized' }}"
+            },
+            {
+              "name": "partner_name",
+              "value": "={{ $json.partner_name || $json.partner || 'Unknown Partner' }}"
+            },
+            {
+              "name": "partner_id",
+              "value": "={{ $json.partner_id || $json.id || 'unknown' }}"
+            },
+            {
+              "name": "milestone",
+              "value": "={{ $json.milestone }}"
+            },
+            {
+              "name": "milestone_date",
+              "value": "={{ $json.milestone_date || $json.date || $now }}"
+            },
+            {
+              "name": "channel_manager",
+              "value": "={{ $json.channel_manager || $json.cm || 'Unassigned' }}"
+            },
+            {
+              "name": "notes",
+              "value": "={{ $json.notes || '' }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "onboarding_date_days_ago",
+              "value": "={{ $json.onboarding_days_ago || $json.days_since_onboarding || 0 }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "benchmark-lookup",
+      "name": "Benchmark Lookup by Tier",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [1050, 200],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.partner_tier }}",
+        "rules": [
+          {
+            "value2": "platinum",
+            "output": 0
+          },
+          {
+            "value2": "gold",
+            "output": 1
+          },
+          {
+            "value2": "authorized",
+            "output": 2
+          }
+        ],
+        "options": {}
+      }
+    },
+    {
+      "id": "platinum-benchmarks",
+      "name": "Platinum Benchmarks",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1250, 100],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "benchmark_first_training_days",
+              "value": 7
+            },
+            {
+              "name": "benchmark_first_certification_days",
+              "value": 21
+            },
+            {
+              "name": "benchmark_first_deal_registered_days",
+              "value": 30
+            },
+            {
+              "name": "benchmark_first_deal_won_days",
+              "value": 60
+            },
+            {
+              "name": "benchmark_first_mdf_claim_days",
+              "value": 45
+            },
+            {
+              "name": "benchmark_first_qbr_days",
+              "value": 90
+            },
+            {
+              "name": "benchmark_onboarding_complete_days",
+              "value": 5
+            },
+            {
+              "name": "tier_label",
+              "value": "Platinum"
+            },
+            {
+              "name": "velocity_threshold_green_pct",
+              "value": 100
+            },
+            {
+              "name": "velocity_threshold_yellow_pct",
+              "value": 75
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "gold-benchmarks",
+      "name": "Gold Benchmarks",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1250, 300],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "benchmark_first_training_days",
+              "value": 14
+            },
+            {
+              "name": "benchmark_first_certification_days",
+              "value": 30
+            },
+            {
+              "name": "benchmark_first_deal_registered_days",
+              "value": 45
+            },
+            {
+              "name": "benchmark_first_deal_won_days",
+              "value": 90
+            },
+            {
+              "name": "benchmark_first_mdf_claim_days",
+              "value": 60
+            },
+            {
+              "name": "benchmark_first_qbr_days",
+              "value": 120
+            },
+            {
+              "name": "benchmark_onboarding_complete_days",
+              "value": 10
+            },
+            {
+              "name": "tier_label",
+              "value": "Gold"
+            },
+            {
+              "name": "velocity_threshold_green_pct",
+              "value": 100
+            },
+            {
+              "name": "velocity_threshold_yellow_pct",
+              "value": 65
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "authorized-benchmarks",
+      "name": "Authorized Benchmarks",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1250, 500],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "benchmark_first_training_days",
+              "value": 21
+            },
+            {
+              "name": "benchmark_first_certification_days",
+              "value": 45
+            },
+            {
+              "name": "benchmark_first_deal_registered_days",
+              "value": 60
+            },
+            {
+              "name": "benchmark_first_deal_won_days",
+              "value": 120
+            },
+            {
+              "name": "benchmark_first_mdf_claim_days",
+              "value": 75
+            },
+            {
+              "name": "benchmark_first_qbr_days",
+              "value": 150
+            },
+            {
+              "name": "benchmark_onboarding_complete_days",
+              "value": 14
+            },
+            {
+              "name": "tier_label",
+              "value": "Authorized"
+            },
+            {
+              "name": "velocity_threshold_green_pct",
+              "value": 100
+            },
+            {
+              "name": "velocity_threshold_yellow_pct",
+              "value": 60
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "calculate-velocity",
+      "name": "Calculate Velocity Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300],
+      "parameters": {
+        "language": "python",
+        "code": "import json\nfrom datetime import datetime, date\n\nitem = items[0]['json']\nmilestone = item.get('milestone', '')\nonboarding_days = item.get('onboarding_date_days_ago', 0)\nmilestone_date_str = item.get('milestone_date', '')\nbenchmarks = {\n    'onboarding_complete': item.get('benchmark_onboarding_complete_days', 14),\n    'first_training': item.get('benchmark_first_training_days', 21),\n    'first_certification': item.get('benchmark_first_certification_days', 45),\n    'first_deal_registered': item.get('benchmark_first_deal_registered_days', 60),\n    'first_deal_won': item.get('benchmark_first_deal_won_days', 120),\n    'first_mdf_claim': item.get('benchmark_first_mdf_claim_days', 75),\n    'first_qbr_attended': item.get('benchmark_first_qbr_days', 150),\n}\n\n# Calculate days since onboarding to this milestone\nif milestone_date_str:\n    try:\n        milestone_date = datetime.fromisoformat(milestone_date_str.replace('Z', '+00:00'))\n        onboarding_date = milestone_date.replace(day=milestone_date.day - onboarding_days) if onboarding_days > 0 else milestone_date\n        actual_days = onboarding_days if onboarding_days > 0 else 0\n    except:\n        actual_days = onboarding_days\nelse:\n    actual_days = onboarding_days\n\n# Get benchmark for this milestone\nbenchmark_days = benchmarks.get(milestone, 60)\n\n# Calculate velocity ratio (higher = faster)\nvelocity_ratio = benchmark_days / max(actual_days, 1) if actual_days > 0 else None\n\n# Velocity score: 100 = exactly on benchmark, >100 = ahead, <100 = behind\nvelocity_score = round(min(velocity_ratio * 100, 300)) if velocity_ratio else 100\n\n# Days ahead or behind\nif actual_days > 0:\n    days_delta = benchmark_days - actual_days\nelse:\n    days_delta = 0\n\nitem['actual_days_to_milestone'] = actual_days\nitem['benchmark_days'] = benchmark_days\nitem['velocity_score'] = velocity_score\nitem['days_ahead'] = max(days_delta, 0)\nitem['days_behind'] = max(-days_delta, 0)\nitem['velocity_status'] = 'ahead' if days_delta > 5 else ('on_track' if days_delta >= -5 else ('at_risk' if days_delta >= -20 else 'critical'))\n\nreturn [{'json': item}]\n"
+      }
+    },
+    {
+      "id": "velocity-router",
+      "name": "Velocity Status Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [1650, 300],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.velocity_status }}",
+        "rules": [
+          {
+            "value2": "ahead",
+            "output": 0
+          },
+          {
+            "value2": "on_track",
+            "output": 1
+          },
+          {
+            "value2": "at_risk",
+            "output": 2
+          },
+          {
+            "value2": "critical",
+            "output": 3
+          }
+        ],
+        "options": {}
+      }
+    },
+    {
+      "id": "ahead-celebration",
+      "name": "Ahead of Schedule - Celebration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1850, 100],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "alert_level",
+              "value": "celebration"
+            },
+            {
+              "name": "alert_color",
+              "value": "good"
+            },
+            {
+              "name": "alert_emoji",
+              "value": "🚀"
+            },
+            {
+              "name": "slack_message",
+              "value": "={{ ':rocket: *Velocity Milestone:* ' + $json.partner_name + ' hit *' + $json.milestone + '* ' + str($json.days_ahead) + ' days ahead of ' + $json.tier_label + ' benchmark!*\\n\\nActual: ' + str($json.actual_days_to_milestone) + ' days | Benchmark: ' + str($json.benchmark_days) + ' days | Score: ' + str($json.velocity_score) + '/100\\nChannel Manager: ' + $json.channel_manager }}"
+            },
+            {
+              "name": "email_subject",
+              "value": "={{ $json.partner_name + ' is crushing their ' + $json.tier_label + ' benchmarks! 🚀' }}"
+            },
+            {
+              "name": "email_body",
+              "value": "={{ 'Hi Team,\\n\\n' + $json.partner_name + ' just achieved *' + $json.milestone + '* in ' + str($json.actual_days_to_milestone) + ' days — ' + str($json.days_ahead) + ' days ahead of the ' + $json.tier_label + ' benchmark of ' + str($json.benchmark_days) + ' days.\\n\\nVelocity Score: ' + str($json.velocity_score) + '/100\\n\\nThis partner is a standout performer. Consider:\\n- Featuring them in an upcoming case study\\n- Asking them to mentor newer partners\\n- Recognizing them in the next partner newsletter\\n\\nBest,\\nCHRONOS Velocity Tracker' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "on-track-log",
+      "name": "On Track - Log Only",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1850, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "alert_level",
+              "value": "info"
+            },
+            {
+              "name": "alert_color",
+              "value": "good"
+            },
+            {
+              "name": "alert_emoji",
+              "value": "✅"
+            },
+            {
+              "name": "slack_message",
+              "value": "={{ ':white_check_mark: *Velocity Update:* ' + $json.partner_name + ' is on track for *' + $json.milestone + '*\\n\\nActual: ' + str($json.actual_days_to_milestone) + ' days | Benchmark: ' + str($json.benchmark_days) + ' days | Score: ' + str($json.velocity_score) + '/100\\nChannel Manager: ' + $json.channel_manager }}"
+            },
+            {
+              "name": "email_subject",
+              "value": ""
+            },
+            {
+              "name": "email_body",
+              "value": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "at-risk-alert",
+      "name": "At Risk - CM Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1850, 500],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "alert_level",
+              "value": "warning"
+            },
+            {
+              "name": "alert_color",
+              "value": "warning"
+            },
+            {
+              "name": "alert_emoji",
+              "value": "⚠️"
+            },
+            {
+              "name": "slack_message",
+              "value": "={{ ':warning: *Velocity Warning:* ' + $json.partner_name + ' is falling behind on *' + $json.milestone + '*\\n\\nActual: ' + str($json.actual_days_to_milestone) + ' days | Benchmark: ' + str($json.benchmark_days) + ' days | ' + str($json.days_behind) + ' days behind | Score: ' + str($json.velocity_score) + '/100\\nChannel Manager: ' + $json.channel_manager + ' — please reach out with coaching support.' }}"
+            },
+            {
+              "name": "email_subject",
+              "value": "={{ $json.partner_name + ' needs coaching support — ' + str($json.days_behind) + ' days behind benchmark' }}"
+            },
+            {
+              "name": "email_body",
+              "value": "={{ 'Hi ' + $json.channel_manager + ',\\n\\n' + $json.partner_name + ' is falling behind on *' + $json.milestone + '*.\\n\\nCurrent: ' + str($json.actual_days_to_milestone) + ' days since onboarding\\n' + $json.tier_label + ' Benchmark: ' + str($json.benchmark_days) + ' days\\nDays Behind: ' + str($json.days_behind) + '\\nVelocity Score: ' + str($json.velocity_score) + '/100\\n\\nRecommended Actions:\\n1. Schedule a 1:1 coaching call this week\\n2. Review available training resources with them\\n3. Check if they need technical or sales support\\n4. Consider adjusting their POA if milestones are unrealistic\\n\\nBest,\\nCHRONOS Velocity Tracker' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "critical-escalation",
+      "name": "Critical - Channel Director Escalation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1850, 700],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "alert_level",
+              "value": "critical"
+            },
+            {
+              "name": "alert_color",
+              "value": "error"
+            },
+            {
+              "name": "alert_emoji",
+              "value": "🚨"
+            },
+            {
+              "name": "slack_message",
+              "value": "={{ ':rotating_light: *Velocity CRITICAL:* ' + $json.partner_name + ' is severely behind on *' + $json.milestone + '*\\n\\nActual: ' + str($json.actual_days_to_milestone) + ' days | Benchmark: ' + str($json.benchmark_days) + ' days | ' + str($json.days_behind) + ' days behind | Score: ' + str($json.velocity_score) + '/100\\nChannel Manager: ' + $json.channel_manager + '\\n\\n*ESCALATION: Channel Director has been notified.*' }}"
+            },
+            {
+              "name": "email_subject",
+              "value": "={{ '[ESCALATION] ' + $json.partner_name + ' critically behind on ' + $json.milestone + ' — Director review required' }}"
+            },
+            {
+              "name": "email_body",
+              "value": "={{ 'Hi Channel Director,\\n\\nThis is an automated escalation from CHRONOS Velocity Tracker.\\n\\n*Partner:* ' + $json.partner_name + ' (' + $json.tier_label + ')\\n*Channel Manager:* ' + $json.channel_manager + '\\n*Milestone:* ' + $json.milestone + '\\n*Days Since Onboarding:* ' + str($json.actual_days_to_milestone) + '\\n*Benchmark:* ' + str($json.benchmark_days) + ' days\\n*Days Behind:* ' + str($json.days_behind) + '\\n*Velocity Score:* ' + str($json.velocity_score) + '/100\\n\\nThis partner has not received adequate support to reach their milestones. Please review:\\n\\n1. Is the channel manager providing sufficient coaching?\\n2. Does this partner need additional training resources?\\n3. Should a PIP (Performance Improvement Plan) be initiated?\\n4. Is the partner a retention risk that needs executive engagement?\\n\\nInitiating a Partner Success Review is recommended within 48 hours.\\n\\nBest,\\nCHRONOS Velocity Tracker' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-ahead",
+      "name": "Slack - Ahead Update",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [2050, 100],
+      "parameters": {
+        "channel": "C123CHANNELPERFORMANCE",
+        "text": "={{ $json.slack_message }}",
+        "jsonParameters": false,
+        "sendAsUser": false,
+        "otherOptions": {
+          "attachments": {
+            "entries": []
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "slack-on-track",
+      "name": "Slack - On Track Log",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [2050, 300],
+      "parameters": {
+        "channel": "C123CHANNELPERFORMANCE",
+        "text": "={{ $json.slack_message }}",
+        "jsonParameters": false,
+        "sendAsUser": false,
+        "otherOptions": {
+          "attachments": {
+            "entries": []
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "slack-at-risk",
+      "name": "Slack - At Risk Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [2050, 500],
+      "parameters": {
+        "channel": "C123CHANNELPERFORMANCE",
+        "text": "={{ $json.slack_message }}",
+        "jsonParameters": false,
+        "sendAsUser": false,
+        "otherOptions": {
+          "attachments": {
+            "entries": []
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "slack-critical",
+      "name": "Slack - Critical Escalation",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [2050, 700],
+      "parameters": {
+        "channel": "C123CHANNELLDIRECTORS",
+        "text": "={{ $json.slack_message }}",
+        "jsonParameters": false,
+        "sendAsUser": false,
+        "otherOptions": {
+          "attachments": {
+            "entries": []
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "email-at-risk",
+      "name": "Email - At Risk Coaching Note",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2250, 500],
+      "parameters": {
+        "fromEmail": "chronos@yourcompany.com",
+        "toEmail": "={{ $json.channel_manager + '@yourcompany.com' }}",
+        "subject": "={{ $json.email_subject }}",
+        "text": "={{ $json.email_body }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "email-critical",
+      "name": "Email - Critical to Director",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2250, 700],
+      "parameters": {
+        "fromEmail": "chronos@yourcompany.com",
+        "toEmail": "channel-director@yourcompany.com",
+        "subject": "={{ $json.email_subject }}",
+        "text": "={{ $json.email_body }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "email-ahead",
+      "name": "Email - Ahead Update",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2250, 100],
+      "parameters": {
+        "fromEmail": "chronos@yourcompany.com",
+        "toEmail": "={{ 'channel-managers@yourcompany.com' }}",
+        "subject": "={{ $json.email_subject }}",
+        "text": "={{ $json.email_body }}",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "sheets-log",
+      "name": "Google Sheets - Velocity Audit Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2450, 300],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "velocity_log",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "string": [
+              {
+                "name": "timestamp",
+                "value": "={{ $now }}"
+              },
+              {
+                "name": "partner_id",
+                "value": "={{ $json.partner_id }}"
+              },
+              {
+                "name": "partner_name",
+                "value": "={{ $json.partner_name }}"
+              },
+              {
+                "name": "tier",
+                "value": "={{ $json.partner_tier }}"
+              },
+              {
+                "name": "channel_manager",
+                "value": "={{ $json.channel_manager }}"
+              },
+              {
+                "name": "milestone",
+                "value": "={{ $json.milestone }}"
+              },
+              {
+                "name": "actual_days",
+                "value": "={{ $json.actual_days_to_milestone }}"
+              },
+              {
+                "name": "benchmark_days",
+                "value": "={{ $json.benchmark_days }}"
+              },
+              {
+                "name": "days_ahead",
+                "value": "={{ $json.days_ahead }}"
+              },
+              {
+                "name": "days_behind",
+                "value": "={{ $json.days_behind }}"
+              },
+              {
+                "name": "velocity_score",
+                "value": "={{ $json.velocity_score }}"
+              },
+              {
+                "name": "velocity_status",
+                "value": "={{ $json.velocity_status }}"
+              },
+              {
+                "name": "alert_level",
+                "value": "={{ $json.alert_level }}"
+              },
+              {
+                "name": "notes",
+                "value": "={{ $json.notes }}"
+              }
+            ]
+          }
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "id": "respond-success",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2650, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  'success': true,\n  'partner': $json.partner_name,\n  'milestone': $json.milestone,\n  'velocity_score': $json.velocity_score,\n  'velocity_status': $json.velocity_status,\n  'alert_level': $json.alert_level,\n  'days_ahead': $json.days_ahead,\n  'days_behind': $json.days_behind,\n  'benchmark_days': $json.benchmark_days\n} }}"
+      }
+    },
+    {
+      "id": "respond-invalid",
+      "name": "Respond - Invalid Milestone",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 500],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Invalid milestone. Valid milestones: onboarding_started, onboarding_complete, first_training, first_certification, first_deal_registered, first_deal_won, first_mdf_claim, first_qbr_attended\",\n  \"received\": $json\n}"
+      }
+    },
+    {
+      "id": "weekly-summary-trigger",
+      "name": "Weekly Velocity Summary Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 700],
+      "webhookId": "chronos-summary",
+      "parameters": {
+        "path": "chronos-summary",
+        "options": {}
+      },
+      "webhookDescription": {
+        "queryParameters": [],
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson",
+        "options": {
+          "responseHeaders": {
+            "entries": []
+          }
+        }
+      }
+    },
+    {
+      "id": "summary-action-router",
+      "name": "Summary Action Router",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 700],
+      "parameters": {
+        "conditions": {
+          "number": [],
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "weekly_summary"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "summary-query-sheets",
+      "name": "Query Velocity Log (Last 7 Days)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [650, 700],
+      "parameters": {
+        "operation": "read",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "velocity_log",
+        "filters": {
+          "dateTime": [
+            {
+              "column": "timestamp",
+              "condition": ">=",
+              "value": "={{ (new Date(Date.now() - 7*24*60*60*1000)).toISOString() }}"
+            }
+          ]
+        },
+        "options": {},
+        "columns": {
+          "mappingMode": "autoMap"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "id": "summary-processing",
+      "name": "Generate Summary Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 700],
+      "parameters": {
+        "language": "python",
+        "code": "import json\nfrom collections import Counter, defaultdict\n\nentries = []\nfor item in items:\n    entries.append(item['json'])\n\nif not entries:\n    return [{'json': {'summary_text': 'No velocity data recorded in the past 7 days.'}}]\n\n# Aggregate metrics\ntotal = len(entries)\ntiers_count = Counter(e.get('tier', 'unknown') for e in entries)\nstatus_count = Counter(e.get('velocity_status', 'unknown') for e in entries)\ncm_count = Counter(e.get('channel_manager', 'Unassigned') for e in entries)\nalert_count = Counter(e.get('alert_level', 'info') for e in entries)\nmilestone_count = Counter(e.get('milestone', 'unknown') for e in entries)\n\navg_score = sum(e.get('velocity_score', 0) for e in entries) / max(total, 1)\n\n# Top partner by velocity\nentries_sorted = sorted(entries, key=lambda e: e.get('velocity_score', 0), reverse=True)\ntop_partner = entries_sorted[0].get('partner_name', 'N/A') if entries_sorted else 'N/A'\ntop_score = entries_sorted[0].get('velocity_score', 0) if entries_sorted else 0\n\n# Partner needing most attention\nentries_sorted_asc = sorted(entries, key=lambda e: e.get('velocity_score', 0))\nworst_partner = entries_sorted_asc[0].get('partner_name', 'N/A') if entries_sorted_asc else 'N/A'\nworst_score = entries_sorted_asc[0].get('velocity_score', 0) if entries_sorted_asc else 0\n\nsummary = f'''*CHRONOS Weekly Velocity Summary* :bar_chart:\n\n*Period:* Past 7 days\n*Total Milestones Logged:* {total}\n*Average Velocity Score:* {avg_score:.0f}/100\n\n*By Status:*\n'''\n\nif status_count.get('ahead', 0) > 0:\n    summary += f'  :rocket: Ahead: {status_count[\"ahead\"]}\\n'\nif status_count.get('on_track', 0) > 0:\n    summary += f'  :white_check_mark: On Track: {status_count[\"on_track\"]}\\n'\nif status_count.get('at_risk', 0) > 0:\n    summary += f'  :warning: At Risk: {status_count[\"at_risk\"]}\\n'\nif status_count.get('critical', 0) > 0:\n    summary += f'  :rotating_light: Critical: {status_count[\"critical\"]}\\n'\n\nsummary += f'''\n*Top Performer:* {top_partner} ({top_score}/100)\n*Needs Attention:* {worst_partner} ({worst_score}/100)\n\n*By Alert Level:*\n'''\nfor level, count in sorted(alert_count.items()):\n    summary += f'  {level}: {count}\\n'\n\nsummary += f'\\n*By Milestone:*\\n'\nfor ms, count in sorted(milestone_count.items()):\n    summary += f'  {ms}: {count}\\n'\n\nreturn [{'json': {'summary_text': summary, 'total': total, 'avg_score': round(avg_score, 1), 'top_partner': top_partner, 'worst_partner': worst_partner}}]\n"
+      }
+    },
+    {
+      "id": "summary-slack",
+      "name": "Slack - Weekly Summary",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1050, 700],
+      "parameters": {
+        "channel": "C123CHANNELMANAGERS",
+        "text": "={{ $json.summary_text }}",
+        "jsonParameters": false,
+        "sendAsUser": false,
+        "otherOptions": {
+          "attachments": {
+            "entries": []
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "summary-respond",
+      "name": "Respond - Summary Complete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 700],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"summary_generated\": true,\n  \"total_milestones\": $json.total,\n  \"avg_velocity_score\": $json.avg_score,\n  \"top_performer\": $json.top_partner\n}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Action Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Router": {
+      "main": [
+        [
+          {
+            "node": "Validate Milestone Input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Weekly Summary Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Milestone Input": {
+      "main": [
+        [
+          {
+            "node": "Set Defaults & Benchmarks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Invalid Milestone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Defaults & Benchmarks": {
+      "main": [
+        [
+          {
+            "node": "Benchmark Lookup by Tier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Benchmark Lookup by Tier": {
+      "main": [
+        [
+          {
+            "node": "Platinum Benchmarks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gold Benchmarks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Authorized Benchmarks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Platinum Benchmarks": {
+      "main": [
+        [
+          {
+            "node": "Calculate Velocity Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gold Benchmarks": {
+      "main": [
+        [
+          {
+            "node": "Calculate Velocity Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authorized Benchmarks": {
+      "main": [
+        [
+          {
+            "node": "Calculate Velocity Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Velocity Score": {
+      "main": [
+        [
+          {
+            "node": "Velocity Status Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Velocity Status Router": {
+      "main": [
+        [
+          {
+            "node": "Ahead of Schedule - Celebration",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "On Track - Log Only",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "At Risk - CM Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Critical - Channel Director Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ahead of Schedule - Celebration": {
+      "main": [
+        [
+          {
+            "node": "Slack - Ahead Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On Track - Log Only": {
+      "main": [
+        [
+          {
+            "node": "Slack - On Track Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "At Risk - CM Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack - At Risk Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical - Channel Director Escalation": {
+      "main": [
+        [
+          {
+            "node": "Slack - Critical Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Ahead Update": {
+      "main": [
+        [
+          {
+            "node": "Email - Ahead Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - On Track Log": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Velocity Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - At Risk Alert": {
+      "main": [
+        [
+          {
+            "node": "Email - At Risk Coaching Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Critical Escalation": {
+      "main": [
+        [
+          {
+            "node": "Email - Critical to Director",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Ahead Update": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Velocity Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - At Risk Coaching Note": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Velocity Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Critical to Director": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Velocity Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Velocity Audit Log": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Summary Trigger": {
+      "main": [
+        [
+          {
+            "node": "Summary Action Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summary Action Router": {
+      "main": [
+        [
+          {
+            "node": "Query Velocity Log (Last 7 Days)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Velocity Log (Last 7 Days)": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Summary Report": {
+      "main": [
+        [
+          {
+            "node": "Slack - Weekly Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Weekly Summary": {
+      "main": [
+        [
+          {
+            "node": "Respond - Summary Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "staticData": null,
+  "tags": []
+}

@@ -1,0 +1,1029 @@
+{
+  "name": "Partner QBR (Quarterly Business Review) Automation",
+  "nodes": [
+    {
+      "id": "webhook-qbr-inbound",
+      "name": "Webhook - QBR Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "path": "partner-qbr",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "partner-qbr-hook"
+    },
+    {
+      "id": "format-qbr-data",
+      "name": "Format QBR Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        450,
+        300
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "action",
+              "value": "={{ $json.body.action || $json.action || 'generate_qbr' }}"
+            },
+            {
+              "name": "partnerId",
+              "value": "={{ $json.body.partnerId || $json.body.partner_id || $json.partnerId || '' }}"
+            },
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName || $json.body.partner_name || $json.partnerName || '' }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.body.partnerEmail || $json.body.partner_email || $json.partnerEmail || '' }}"
+            },
+            {
+              "name": "partnerTier",
+              "value": "={{ $json.body.partnerTier || $json.body.tier || $json.partnerTier || 'Authorized' }}"
+            },
+            {
+              "name": "channelManager",
+              "value": "={{ $json.body.channelManager || $json.body.cm_name || $json.channelManager || '' }}"
+            },
+            {
+              "name": "channelManagerEmail",
+              "value": "={{ $json.body.channelManagerEmail || $json.body.cm_email || $json.channelManagerEmail || '' }}"
+            },
+            {
+              "name": "quarter",
+              "value": "={{ $json.body.quarter || $json.quarter || 'Q' + Math.ceil((new Date().getMonth() + 1) / 3) + ' ' + new Date().getFullYear() }}"
+            },
+            {
+              "name": "reviewDecision",
+              "value": "={{ $json.body.reviewDecision || $json.body.decision || $json.reviewDecision || '' }}"
+            },
+            {
+              "name": "reviewComments",
+              "value": "={{ $json.body.reviewComments || $json.body.comments || $json.reviewComments || '' }}"
+            },
+            {
+              "name": "meetingDate",
+              "value": "={{ $json.body.meetingDate || $json.body.meeting_date || $json.meetingDate || '' }}"
+            },
+            {
+              "name": "qbrId",
+              "value": "={{ $json.body.qbrId || $json.body.qbr_id || $json.qbrId || 'QBR-' + Date.now() }}"
+            },
+            {
+              "name": "actionItems",
+              "value": "={{ $json.body.actionItems || $json.body.action_items || $json.actionItems || '' }}"
+            },
+            {
+              "name": "nextQuarterGoals",
+              "value": "={{ $json.body.nextQuarterGoals || $json.body.goals || $json.nextQuarterGoals || '' }}"
+            },
+            {
+              "name": "submittedAt",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "revenueYTD",
+              "value": "={{ $json.body.revenueYTD || $json.body.revenue_ytd || $json.revenueYTD || 0 }}"
+            },
+            {
+              "name": "revenueTarget",
+              "value": "={{ $json.body.revenueTarget || $json.body.revenue_target || $json.revenueTarget || 0 }}"
+            },
+            {
+              "name": "dealsClosed",
+              "value": "={{ $json.body.dealsClosed || $json.body.deals_closed || $json.dealsClosed || 0 }}"
+            },
+            {
+              "name": "dealsRegistered",
+              "value": "={{ $json.body.dealsRegistered || $json.body.deals_registered || $json.dealsRegistered || 0 }}"
+            },
+            {
+              "name": "mdfAllocated",
+              "value": "={{ $json.body.mdfAllocated || $json.body.mdf_allocated || $json.mdfAllocated || 0 }}"
+            },
+            {
+              "name": "mdfUtilized",
+              "value": "={{ $json.body.mdfUtilized || $json.body.mdf_utilized || $json.mdfUtilized || 0 }}"
+            },
+            {
+              "name": "trainingCompleted",
+              "value": "={{ $json.body.trainingCompleted || $json.body.training_completed || $json.trainingCompleted || 0 }}"
+            },
+            {
+              "name": "certificationsEarned",
+              "value": "={{ $json.body.certificationsEarned || $json.body.certs_earned || $json.certificationsEarned || 0 }}"
+            },
+            {
+              "name": "engagementScore",
+              "value": "={{ $json.body.engagementScore || $json.body.engagement_score || $json.engagementScore || 50 }}"
+            },
+            {
+              "name": "portalLogins",
+              "value": "={{ $json.body.portalLogins || $json.body.portal_logins || $json.portalLogins || 0 }}"
+            },
+            {
+              "name": "referralsSent",
+              "value": "={{ $json.body.referralsSent || $json.body.referrals_sent || $json.referralsSent || 0 }}"
+            },
+            {
+              "name": "referralsConverted",
+              "value": "={{ $json.body.referralsConverted || $json.body.referrals_converted || $json.referralsConverted || 0 }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "if-action-type",
+      "name": "IF - QBR Action Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "generate_qbr"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "if-action-review",
+      "name": "IF - Review or Complete",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        650,
+        500
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "review_qbr"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "if-tier-check",
+      "name": "IF - Full or Simplified QBR",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        850,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.partnerTier.toLowerCase() }}",
+              "operation": "notInArray",
+              "value2": [
+                "authorized"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "set-full-scorecard",
+      "name": "Set - Full QBR Scorecard",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1050,
+        50
+      ],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "revenueAttainmentPct",
+              "value": "={{ $json.revenueTarget > 0 ? Math.min(100, Math.round(($json.revenueYTD / $json.revenueTarget) * 100)) : 0 }}"
+            },
+            {
+              "name": "dealRegAttainmentPct",
+              "value": "={{ Math.min(100, Math.round(($json.dealsRegistered / Math.max($json.dealsClosed, 1)) * 100)) }}"
+            },
+            {
+              "name": "mdfUtilizationPct",
+              "value": "={{ $json.mdfAllocated > 0 ? Math.min(100, Math.round(($json.mdfUtilized / $json.mdfAllocated) * 100)) : 0 }}"
+            },
+            {
+              "name": "referralConversionPct",
+              "value": "={{ $json.referralsSent > 0 ? Math.min(100, Math.round(($json.referralsConverted / $json.referralsSent) * 100)) : 0 }}"
+            },
+            {
+              "name": "revenueScore",
+              "value": "={{ Math.min(30, Math.round(($json.revenueTarget > 0 ? ($json.revenueYTD / $json.revenueTarget) : 0) * 30)) }}"
+            },
+            {
+              "name": "dealScore",
+              "value": "={{ Math.min(20, Math.round(Math.min($json.dealsClosed, 30) / 30 * 20)) }}"
+            },
+            {
+              "name": "mdfScore",
+              "value": "={{ Math.min(15, Math.round(($json.mdfAllocated > 0 ? ($json.mdfUtilized / $json.mdfAllocated) : 0) * 15)) }}"
+            },
+            {
+              "name": "trainingScore",
+              "value": "={{ Math.min(15, Math.round(Math.min($json.trainingCompleted + $json.certificationsEarned * 3, 20) / 20 * 15)) }}"
+            },
+            {
+              "name": "engagementScoreWeighted",
+              "value": "={{ Math.min(10, Math.round(($json.engagementScore / 100) * 10)) }}"
+            },
+            {
+              "name": "referralScore",
+              "value": "={{ Math.min(10, Math.round(Math.min($json.referralsConverted, 10) / 10 * 10)) }}"
+            },
+            {
+              "name": "qbrScore",
+              "value": "={{ Math.min(100, Math.round(($json.revenueTarget > 0 ? ($json.revenueYTD / $json.revenueTarget) : 0) * 30 + Math.min($json.dealsClosed, 30) / 30 * 20 + ($json.mdfAllocated > 0 ? ($json.mdfUtilized / $json.mdfAllocated) : 0) * 15 + Math.min($json.trainingCompleted + $json.certificationsEarned * 3, 20) / 20 * 15 + ($json.engagementScore / 100) * 10 + Math.min($json.referralsConverted, 10) / 10 * 10)) }}"
+            }
+          ],
+          "string": [
+            {
+              "name": "qbrType",
+              "value": "Full QBR"
+            },
+            {
+              "name": "performanceLabel",
+              "value": "={{ $json.qbrScore >= 80 ? 'Strong' : $json.qbrScore >= 50 ? 'Needs Discussion' : 'Requires Attention' }}"
+            },
+            {
+              "name": "scoreEmoji",
+              "value": "={{ $json.qbrScore >= 80 ? '\\u2705' : $json.qbrScore >= 50 ? '\\u26a0\\ufe0f' : '\\ud83d\\udea8' }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "set-simplified-scorecard",
+      "name": "Set - Simplified QBR Scorecard",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1050,
+        200
+      ],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "revenueAttainmentPct",
+              "value": "={{ $json.revenueTarget > 0 ? Math.min(100, Math.round(($json.revenueYTD / $json.revenueTarget) * 100)) : 0 }}"
+            },
+            {
+              "name": "dealRegAttainmentPct",
+              "value": "={{ Math.min(100, Math.round(($json.dealsRegistered / Math.max($json.dealsClosed, 1)) * 100)) }}"
+            },
+            {
+              "name": "mdfUtilizationPct",
+              "value": "={{ $json.mdfAllocated > 0 ? Math.min(100, Math.round(($json.mdfUtilized / $json.mdfAllocated) * 100)) : 0 }}"
+            },
+            {
+              "name": "referralConversionPct",
+              "value": "={{ $json.referralsSent > 0 ? Math.min(100, Math.round(($json.referralsConverted / $json.referralsSent) * 100)) : 0 }}"
+            },
+            {
+              "name": "revenueScore",
+              "value": "={{ Math.min(35, Math.round(($json.revenueTarget > 0 ? ($json.revenueYTD / $json.revenueTarget) : 0) * 35)) }}"
+            },
+            {
+              "name": "dealScore",
+              "value": "={{ Math.min(25, Math.round(Math.min($json.dealsClosed, 20) / 20 * 25)) }}"
+            },
+            {
+              "name": "mdfScore",
+              "value": "={{ Math.min(20, Math.round(($json.mdfAllocated > 0 ? ($json.mdfUtilized / $json.mdfAllocated) : 0) * 20)) }}"
+            },
+            {
+              "name": "engagementScoreWeighted",
+              "value": "={{ Math.min(20, Math.round(($json.engagementScore / 100) * 20)) }}"
+            },
+            {
+              "name": "qbrScore",
+              "value": "={{ Math.min(100, Math.round(($json.revenueTarget > 0 ? ($json.revenueYTD / $json.revenueTarget) : 0) * 35 + Math.min($json.dealsClosed, 20) / 20 * 25 + ($json.mdfAllocated > 0 ? ($json.mdfUtilized / $json.mdfAllocated) : 0) * 20 + ($json.engagementScore / 100) * 20)) }}"
+            }
+          ],
+          "string": [
+            {
+              "name": "qbrType",
+              "value": "Simplified QBR"
+            },
+            {
+              "name": "performanceLabel",
+              "value": "={{ $json.qbrScore >= 80 ? 'Strong' : $json.qbrScore >= 50 ? 'Needs Discussion' : 'Requires Attention' }}"
+            },
+            {
+              "name": "scoreEmoji",
+              "value": "={{ $json.qbrScore >= 80 ? '\\u2705' : $json.qbrScore >= 50 ? '\\u26a0\\ufe0f' : '\\ud83d\\udea8' }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "if-score-threshold",
+      "name": "IF - Score Threshold Route",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.qbrScore }}",
+              "operation": "largerEqual",
+              "value2": 50
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "if-score-strong",
+      "name": "IF - Strong or Needs Discussion",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        50
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.qbrScore }}",
+              "operation": "largerEqual",
+              "value2": 80
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "slack-cm-qbr-ready",
+      "name": "Slack CM - QBR Scorecard Ready",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1650,
+        0
+      ],
+      "parameters": {
+        "channel": "C_YOUR_QBR_CHANNEL",
+        "text": "={{ '\\u250c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2510\\n' + $json.scoreEmoji + ' *QBR SCORECARD: ' + $json.partnerName + '*\\n\\u251c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2524\\n*Tier:* ' + $json.partnerTier + ' | *Quarter:* ' + $json.quarter + ' | *Type:* ' + $json.qbrType + '\\n\\n*QBR Score:* ' + $json.qbrScore + '/100 \u2014 ' + $json.performanceLabel + '\\n*Revenue:* ' + $json.revenueAttainmentPct + '% attainment ($' + $json.revenueYTD.toLocaleString() + ' / $' + $json.revenueTarget.toLocaleString() + ')\\n*Deals:* ' + $json.dealsClosed + ' closed, ' + $json.dealsRegistered + ' registered\\n*MDF:* ' + $json.mdfUtilizationPct + '% utilized ($' + $json.mdfUtilized.toLocaleString() + ' / $' + $json.mdfAllocated.toLocaleString() + ')\\n*Engagement:* ' + $json.engagementScore + '/100 | *Logins:* ' + $json.portalLogins + '\\n*Training:* ' + $json.trainingCompleted + ' courses | *Certs:* ' + $json.certificationsEarned + '\\n*Referrals:* ' + $json.referralsConverted + '/' + $json.referralsSent + ' converted (' + $json.referralConversionPct + '%)\\n\\n*Next Step:* POST to /partner-qbr with action=review_qbr\\n  decision=approve_schedule&meetingDate=YYYY-MM-DD\\n  OR decision=flag_issues&comments=...\\n\\u2514\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2518' }}"
+      }
+    },
+    {
+      "id": "email-partner-qbr-scheduling",
+      "name": "Email Partner - QBR Scheduling Request",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1850,
+        0
+      ],
+      "parameters": {
+        "fromEmail": "channel@yourcompany.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'Your ' + $json.quarter + ' QBR Scorecard is Ready \u2014 Let\\'s Schedule' }}",
+        "text": "={{ 'Hi ' + $json.partnerName + ' team,\\n\\nWe\\'ve prepared your ' + $json.quarter + ' Quarterly Business Review scorecard. Your QBR score is ' + $json.qbrScore + '/100 (' + $json.performanceLabel + ').\\n\\n--- ' + $json.qbrType + ' Scorecard ---\\n\\nQBR Score: ' + $json.qbrScore + '/100\\nPerformance: ' + $json.performanceLabel + '\\n\\nRevenue: $' + $json.revenueYTD.toLocaleString() + ' vs target of $' + $json.revenueTarget.toLocaleString() + ' (' + $json.revenueAttainmentPct + '%)\\nDeals Closed: ' + $json.dealsClosed + ' | Registered: ' + $json.dealsRegistered + '\\nMDF Utilization: $' + $json.mdfUtilized.toLocaleString() + ' of $' + $json.mdfAllocated.toLocaleString() + ' (' + $json.mdfUtilizationPct + '%)\\nTraining Completed: ' + $json.trainingCompleted + ' courses\\nCertifications: ' + $json.certificationsEarned + '\\nEngagement Score: ' + $json.engagementScore + '/100\\nReferrals: ' + $json.referralsConverted + '/' + $json.referralsSent + ' converted\\n\\nYour channel manager will reach out to schedule a QBR meeting. Please prepare:\\n1. Key wins and challenges this quarter\\n2. Pipeline forecast for next quarter\\n3. Marketing initiatives and MDF needs\\n4. Training and certification plans\\n\\nBest,\\nChannel Team\\n' + $json.channelManager }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "if-action-complete",
+      "name": "IF - Complete Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        650,
+        700
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "complete_qbr"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "set-qbr-outcomes",
+      "name": "Set - QBR Outcomes",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        850,
+        700
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "qbrStatus",
+              "value": "completed"
+            },
+            {
+              "name": "completedAt",
+              "value": "={{ new Date().toISOString() }}"
+            },
+            {
+              "name": "actionItems",
+              "value": "={{ $json.actionItems || 'No action items recorded' }}"
+            },
+            {
+              "name": "nextQuarterGoals",
+              "value": "={{ $json.nextQuarterGoals || 'Goals to be defined' }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "nextQuarterRevenueTarget",
+              "value": "={{ $json.body.nextQuarterRevenueTarget || $json.nextQuarterRevenueTarget || $json.revenueTarget || 0 }}"
+            },
+            {
+              "name": "nextQuarterDealsTarget",
+              "value": "={{ $json.body.nextQuarterDealsTarget || $json.nextQuarterDealsTarget || $json.dealsClosed || 0 }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "sheets-qbr-audit-log",
+      "name": "Google Sheets - QBR Audit Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1050,
+        700
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "QBR_Audit_Log",
+        "options": {},
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "string": [
+              {
+                "name": "qbrId",
+                "value": "={{ $json.qbrId }}"
+              },
+              {
+                "name": "partnerName",
+                "value": "={{ $json.partnerName }}"
+              },
+              {
+                "name": "partnerTier",
+                "value": "={{ $json.partnerTier }}"
+              },
+              {
+                "name": "quarter",
+                "value": "={{ $json.quarter }}"
+              },
+              {
+                "name": "qbrType",
+                "value": "={{ $json.qbrType }}"
+              },
+              {
+                "name": "qbrScore",
+                "value": "={{ $json.qbrScore }}"
+              },
+              {
+                "name": "performanceLabel",
+                "value": "={{ $json.performanceLabel }}"
+              },
+              {
+                "name": "revenueAttainmentPct",
+                "value": "={{ $json.revenueAttainmentPct }}"
+              },
+              {
+                "name": "mdfUtilizationPct",
+                "value": "={{ $json.mdfUtilizationPct }}"
+              },
+              {
+                "name": "dealRegAttainmentPct",
+                "value": "={{ $json.dealRegAttainmentPct }}"
+              },
+              {
+                "name": "qbrStatus",
+                "value": "={{ $json.qbrStatus }}"
+              },
+              {
+                "name": "channelManager",
+                "value": "={{ $json.channelManager }}"
+              },
+              {
+                "name": "actionItems",
+                "value": "={{ $json.actionItems }}"
+              },
+              {
+                "name": "nextQuarterGoals",
+                "value": "={{ $json.nextQuarterGoals }}"
+              },
+              {
+                "name": "nextQuarterRevenueTarget",
+                "value": "={{ $json.nextQuarterRevenueTarget }}"
+              },
+              {
+                "name": "completedAt",
+                "value": "={{ $json.completedAt }}"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "email-partner-qbr-summary",
+      "name": "Email Partner - QBR Summary & Action Items",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        700
+      ],
+      "parameters": {
+        "fromEmail": "channel@yourcompany.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'Your ' + $json.quarter + ' QBR Summary \u2014 Action Items Inside' }}",
+        "text": "={{ 'Hi ' + $json.partnerName + ' team,\\n\\nThank you for completing your ' + $json.quarter + ' QBR. Here is your summary:\\n\\n--- QBR OUTCOMES ---\\n\\nQBR Score: ' + $json.qbrScore + '/100 \u2014 ' + $json.performanceLabel + '\\nStatus: ' + $json.qbrStatus + '\\n\\nNEXT QUARTER TARGETS\\nRevenue Target: $' + $json.nextQuarterRevenueTarget.toLocaleString() + '\\nDeals Target: ' + $json.nextQuarterDealsTarget + '\\n\\nACTION ITEMS\\n' + $json.actionItems + '\\n\\nGOALS FOR ' + ($json.quarter.includes('Q1') ? 'Q2' : $json.quarter.includes('Q2') ? 'Q3' : $json.quarter.includes('Q3') ? 'Q4' : 'Q1') + '\\n' + $json.nextQuarterGoals + '\\n\\nYour channel manager (' + $json.channelManager + ') will follow up to track progress.\\n\\nBest,\\nChannel Team' }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "slack-cm-qbr-complete",
+      "name": "Slack CM - QBR Completed",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        700
+      ],
+      "parameters": {
+        "channel": "C_YOUR_QBR_CHANNEL",
+        "text": "={{ '\\u2705 *QBR COMPLETED: ' + $json.partnerName + '*\\n' + $json.quarter + ' | Score: ' + $json.qbrScore + '/100 (' + $json.performanceLabel + ')\\n*Next Targets:* $' + $json.nextQuarterRevenueTarget.toLocaleString() + ' rev, ' + $json.nextQuarterDealsTarget + ' deals\\n*Action Items:* ' + $json.actionItems.substring(0, 200) + '...' }}"
+      }
+    },
+    {
+      "id": "return-qbr-complete",
+      "name": "Return - QBR Completed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1650,
+        700
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\\n  success: true,\\n  message: 'QBR completed and logged. Summary sent to partner and CM.',\\n  qbrId: $json.qbrId,\\n  partnerName: $json.partnerName,\\n  quarter: $json.quarter,\\n  qbrScore: $json.qbrScore,\\n  performanceLabel: $json.performanceLabel,\\n  qbrStatus: $json.qbrStatus,\\n  actionItems: $json.actionItems,\\n  nextQuarterRevenueTarget: $json.nextQuarterRevenueTarget,\\n  completedAt: $json.completedAt\\n} }}"
+      }
+    },
+    {
+      "id": "return-qbr-generated",
+      "name": "Return - QBR Generated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2050,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\\n  success: true,\\n  message: 'QBR scorecard generated. CM notified via Slack. Partner emailed for scheduling.',\\n  qbrId: $json.qbrId,\\n  partnerName: $json.partnerName,\\n  quarter: $json.quarter,\\n  qbrType: $json.qbrType,\\n  partnerTier: $json.partnerTier,\\n  qbrScore: $json.qbrScore,\\n  performanceLabel: $json.performanceLabel,\\n  scoreEmoji: $json.scoreEmoji,\\n  revenueAttainmentPct: $json.revenueAttainmentPct,\\n  mdfUtilizationPct: $json.mdfUtilizationPct,\\n  dealRegAttainmentPct: $json.dealRegAttainmentPct,\\n  referralConversionPct: $json.referralConversionPct,\\n  channelManager: $json.channelManager,\\n  generatedAt: new Date().toISOString()\\n} }}"
+      }
+    },
+    {
+      "id": "if-review-decision",
+      "name": "IF - Review Decision Route",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        850,
+        500
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.reviewDecision }}",
+              "operation": "equal",
+              "value2": "approve_schedule"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "slack-cm-review-flag",
+      "name": "Slack CM - QBR Flagged for Review",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        600
+      ],
+      "parameters": {
+        "channel": "C_YOUR_QBR_CHANNEL",
+        "text": "={{ '\\u26a0\\ufe0f *QBR REVIEW REQUIRES ACTION: ' + $json.partnerName + '*\\n\\u251c\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2524\\n*Quarter:* ' + $json.quarter + '\\n*Tier:* ' + $json.partnerTier + '\\n*Score:* ' + $json.qbrScore + '/100\\n*CM Comments:* ' + $json.reviewComments + '\\n\\nPlease review and address before scheduling the QBR meeting.\\n\\u2514\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2524' }}"
+      }
+    },
+    {
+      "id": "email-partner-qbr-scheduled",
+      "name": "Email Partner - QBR Scheduled",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        460
+      ],
+      "parameters": {
+        "fromEmail": "channel@yourcompany.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'Your ' + $json.quarter + ' QBR is Scheduled \u2014 ' + $json.meetingDate }}",
+        "text": "={{ 'Hi ' + $json.partnerName + ' team,\\n\\nGreat news! Your ' + $json.quarter + ' Quarterly Business Review has been scheduled.\\n\\nMeeting Date: ' + $json.meetingDate + '\\nDuration: 60 minutes\\n\\nPlease prepare the following for the meeting:\\n1. Review your QBR scorecard (score: ' + $json.qbrScore + '/100)\\n2. List your top 3 wins this quarter\\n3. Identify any challenges or blockers\\n4. Pipeline forecast for next quarter\\n5. MDF/marketing plans for next quarter\\n6. Training & certification roadmap\\n\\nAgenda:\\n- Performance review & scorecard walkthrough\\n- Wins & challenges discussion\\n- Pipeline & forecast review\\n- MDF & marketing planning\\n- Training & certification update\\n- Next quarter goals & targets\\n- Action items & next steps\\n\\nIf this date doesn\\'t work, please contact your channel manager (' + $json.channelManager + ') to reschedule.\\n\\nBest,\\nChannel Team' }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "email-partner-qbr-flag",
+      "name": "Email Partner - QBR Review Needed",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        600
+      ],
+      "parameters": {
+        "fromEmail": "channel@yourcompany.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "={{ 'Update on Your ' + $json.quarter + ' QBR \u2014 Additional Review Needed' }}",
+        "text": "={{ 'Hi ' + $json.partnerName + ' team,\\n\\nYour ' + $json.quarter + ' QBR scorecard has been reviewed, and your channel manager would like to discuss a few items before scheduling the formal meeting.\\n\\nQBR Score: ' + $json.qbrScore + '/100\\n\\nChannel Manager Comments:\\n' + $json.reviewComments + '\\n\\nYour channel manager (' + $json.channelManager + ') will be in touch shortly to discuss these items. No action needed from you at this time.\\n\\nBest,\\nChannel Team' }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "return-qbr-scheduled",
+      "name": "Return - QBR Scheduled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        460
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\\n  success: true,\\n  message: 'QBR scheduled. Confirmation sent to partner.',\\n  qbrId: $json.qbrId,\\n  partnerName: $json.partnerName,\\n  quarter: $json.quarter,\\n  qbrScore: $json.qbrScore,\\n  meetingDate: $json.meetingDate,\\n  reviewedAt: new Date().toISOString()\\n} }}"
+      }
+    },
+    {
+      "id": "return-qbr-flagged",
+      "name": "Return - QBR Flagged",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        600
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\\n  success: true,\\n  message: 'QBR flagged for review. CM and partner notified.',\\n  qbrId: $json.qbrId,\\n  partnerName: $json.partnerName,\\n  quarter: $json.quarter,\\n  reviewComments: $json.reviewComments,\\n  flaggedAt: new Date().toISOString()\\n} }}"
+      }
+    },
+    {
+      "id": "email-director-escalation",
+      "name": "Email Director - QBR Requires Attention",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1850,
+        100
+      ],
+      "parameters": {
+        "fromEmail": "channel@yourcompany.com",
+        "toEmail": "={{ $json.body.directorEmail || $json.directorEmail || 'channel-director@yourcompany.com' }}",
+        "subject": "={{ '\\u26a0\\ufe0f QBR Requires Attention: ' + $json.partnerName + ' scored ' + $json.qbrScore + '/100' }}",
+        "text": "={{ 'Hi Channel Director,\\n\\nThe following partner requires attention based on their QBR scorecard.\\n\\nPartner: ' + $json.partnerName + '\\nTier: ' + $json.partnerTier + '\\nQuarter: ' + $json.quarter + '\\nQBR Score: ' + $json.qbrScore + '/100\\nPerformance: ' + $json.performanceLabel + '\\nChannel Manager: ' + $json.channelManager + '\\n\\nKey metrics:\\n- Revenue: $' + $json.revenueYTD.toLocaleString() + ' vs $' + $json.revenueTarget.toLocaleString() + ' target (' + $json.revenueAttainmentPct + '%)\\n- Deals Closed: ' + $json.dealsClosed + '\\n- MDF Utilization: ' + $json.mdfUtilizationPct + '%\\n- Engagement: ' + $json.engagementScore + '/100\\n\\nThis partner has been flagged for additional attention. Please review and advise on next steps.\\n\\nBest,\\nChannel Ops' }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - QBR Inbound": {
+      "main": [
+        [
+          {
+            "node": "Format QBR Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format QBR Data": {
+      "main": [
+        [
+          {
+            "node": "IF - QBR Action Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - QBR Action Type": {
+      "main": [
+        [
+          {
+            "node": "IF - Full or Simplified QBR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - Review or Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Review or Complete": {
+      "main": [
+        [
+          {
+            "node": "IF - Review Decision Route",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - Complete Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Full or Simplified QBR": {
+      "main": [
+        [
+          {
+            "node": "Set - Full QBR Scorecard",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Simplified QBR Scorecard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Full QBR Scorecard": {
+      "main": [
+        [
+          {
+            "node": "IF - Score Threshold Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Simplified QBR Scorecard": {
+      "main": [
+        [
+          {
+            "node": "IF - Score Threshold Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Score Threshold Route": {
+      "main": [
+        [
+          {
+            "node": "IF - Strong or Needs Discussion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Director - QBR Requires Attention",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Strong or Needs Discussion": {
+      "main": [
+        [
+          {
+            "node": "Slack CM - QBR Scorecard Ready",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack CM - QBR Scorecard Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack CM - QBR Scorecard Ready": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - QBR Scheduling Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - QBR Scheduling Request": {
+      "main": [
+        [
+          {
+            "node": "Return - QBR Generated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Review Decision Route": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - QBR Scheduled",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack CM - QBR Flagged for Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - QBR Scheduled": {
+      "main": [
+        [
+          {
+            "node": "Return - QBR Scheduled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack CM - QBR Flagged for Review": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - QBR Review Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - QBR Review Needed": {
+      "main": [
+        [
+          {
+            "node": "Return - QBR Flagged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Complete Action": {
+      "main": [
+        [
+          {
+            "node": "Set - QBR Outcomes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - QBR Outcomes": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - QBR Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - QBR Audit Log": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - QBR Summary & Action Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - QBR Summary & Action Items": {
+      "main": [
+        [
+          {
+            "node": "Slack CM - QBR Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack CM - QBR Completed": {
+      "main": [
+        [
+          {
+            "node": "Return - QBR Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Director - QBR Requires Attention": {
+      "main": [
+        [
+          {
+            "node": "Slack CM - QBR Scorecard Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "staticData": null,
+  "settings": {},
+  "tags": [],
+  "pinData": {}
+}

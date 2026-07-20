@@ -1,0 +1,906 @@
+{
+  "name": "DISCERN — Partner Deal Intelligence, Scoring & Confidence-Enabled Routing Network",
+  "nodes": [
+    {
+      "id": "webhook-discern-inbound",
+      "name": "Webhook - DISCERN Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "discern-deal-intelligence",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "discern-deal-hook"
+    },
+    {
+      "id": "format-discern-data",
+      "name": "Format Deal Registration Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "action",
+              "value": "={{ $json.body.action || $json.action || 'score_deal' }}"
+            },
+            {
+              "name": "partnerId",
+              "value": "={{ $json.body.partnerId || $json.partnerId || '' }}"
+            },
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName || $json.partnerName || '' }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.body.partnerEmail || $json.partnerEmail || '' }}"
+            },
+            {
+              "name": "partnerTier",
+              "value": "={{ ($json.body.partnerTier || $json.partnerTier || '').toString() }}"
+            },
+            {
+              "name": "channelManagerEmail",
+              "value": "={{ $json.body.channelManagerEmail || $json.channelManagerEmail || '' }}"
+            },
+            {
+              "name": "channelManagerName",
+              "value": "={{ $json.body.channelManagerName || $json.channelManagerName || '' }}"
+            },
+            {
+              "name": "endCustomer",
+              "value": "={{ $json.body.endCustomer || $json.endCustomer || '' }}"
+            },
+            {
+              "name": "productCategory",
+              "value": "={{ $json.body.productCategory || $json.productCategory || 'General' }}"
+            },
+            {
+              "name": "dealDescription",
+              "value": "={{ $json.body.dealDescription || $json.dealDescription || '' }}"
+            },
+            {
+              "name": "competition",
+              "value": "={{ $json.body.competition || $json.competition || 'Unknown' }}"
+            },
+            {
+              "name": "salesCycleStage",
+              "value": "={{ $json.body.salesCycleStage || $json.salesCycleStage || 'Discovery' }}"
+            },
+            {
+              "name": "registrationId",
+              "value": "={{ 'DR-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase() }}"
+            },
+            {
+              "name": "scoredAt",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "dealValue",
+              "value": "={{ $json.body.dealValue || $json.dealValue || 0 }}"
+            },
+            {
+              "name": "historicalWinRate",
+              "value": "={{ $json.body.historicalWinRate || $json.historicalWinRate || 0 }}"
+            },
+            {
+              "name": "productExpertiseScore",
+              "value": "={{ $json.body.productExpertiseScore || $json.productExpertiseScore || 0 }}"
+            },
+            {
+              "name": "pipelineVelocity",
+              "value": "={{ $json.body.pipelineVelocity || $json.pipelineVelocity || 0 }}"
+            },
+            {
+              "name": "competitiveIntensity",
+              "value": "={{ $json.body.competitiveIntensity || $json.competitiveIntensity || 5 }}"
+            },
+            {
+              "name": "partnerEngagementScore",
+              "value": "={{ $json.body.partnerEngagementScore || $json.partnerEngagementScore || 70 }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "route-discern-action",
+      "name": "Route by Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.action }}",
+        "rules": [
+          {
+            "value2": "score_deal",
+            "output": 0
+          },
+          {
+            "value2": "pipeline_health",
+            "output": 1
+          }
+        ],
+        "fallbackOutput": 0
+      }
+    },
+    {
+      "id": "calculate-deal-score",
+      "name": "Calculate Predictive Deal Score",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 100],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "tierScore",
+              "value": "={{ $json.partnerTier === 'Platinum' ? 95 : $json.partnerTier === 'Gold' ? 80 : $json.partnerTier === 'Silver' ? 65 : 50 }}"
+            },
+            {
+              "name": "winRateScore",
+              "value": "={{ Math.min($json.historicalWinRate * 100, 100) }}"
+            },
+            {
+              "name": "dealSizeScore",
+              "value": "={{ $json.dealValue > 0 ? ($json.dealValue >= 100000 ? 90 : $json.dealValue >= 50000 ? 80 : $json.dealValue >= 25000 ? 70 : $json.dealValue >= 10000 ? 60 : 50) : 0 }}"
+            },
+            {
+              "name": "expertiseScore",
+              "value": "={{ $json.productExpertiseScore }}"
+            },
+            {
+              "name": "velocityScore",
+              "value": "={{ Math.min($json.pipelineVelocity * 100, 100) }}"
+            },
+            {
+              "name": "competitionScore",
+              "value": "={{ Math.max(100 - ($json.competitiveIntensity * 10), 10) }}"
+            },
+            {
+              "name": "engagementScore",
+              "value": "={{ $json.partnerEngagementScore }}"
+            },
+            {
+              "name": "confidenceScore",
+              "value": "={{ Math.round(($json.tierScore * 0.25) + ($json.winRateScore * 0.20) + ($json.dealSizeScore * 0.10) + ($json.expertiseScore * 0.15) + ($json.velocityScore * 0.10) + ($json.competitionScore * 0.10) + ($json.engagementScore * 0.10)) }}"
+            }
+          ],
+          "string": [
+            {
+              "name": "confidenceLevel",
+              "value": "={{ $json.confidenceScore >= 75 ? 'High' : $json.confidenceScore >= 50 ? 'Medium' : 'Low' }}"
+            },
+            {
+              "name": "recommendedDiscount",
+              "value": "={{ $json.confidenceScore >= 80 ? 'Standard (10%)' : $json.confidenceScore >= 65 ? 'Standard (10%) with 5% flex' : $json.confidenceScore >= 50 ? 'Standard (10%) — partner to justify discount' : 'No discount — partner needs to qualify further' }}"
+            },
+            {
+              "name": "coachingTips",
+              "value": "={{ $json.confidenceScore >= 75 ? 'Partner is well-positioned. Provide standard support and competitive analysis.' : $json.confidenceScore >= 50 ? 'Partner needs support. Consider: (1) Joint sales call with your SE, (2) ROI calculator for buyer, (3) Reference case study from similar deal.' : 'High-touch support needed: (1) Set up intro call between partner and your sales team, (2) Provide competitive battlecard, (3) Schedule internal pipeline review, (4) Consider discount authorization.' }}"
+            },
+            {
+              "name": "riskFactors",
+              "value": "={{ $json.competitionScore < 40 ? 'Strong competition detected — provide competitive positioning support|' : '' }}{{ $json.winRateScore < 40 ? 'Low historical win rate — partner may need coaching|' : '' }}{{ $json.expertiseScore < 40 ? 'Limited product expertise — consider joint demo or SE support|' : '' }}{{ $json.engagementScore < 40 ? 'Low partner engagement — recent activity is minimal|' : '' }}{{ $json.dealSizeScore < 40 ? 'Small deal value — verify partner capability|' : '' }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "route-by-confidence",
+      "name": "Route by Confidence Score",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 100],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.confidenceScore }}",
+              "operation": "largerEqual",
+              "value2": 75
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "secondary-if-medium",
+      "name": "Medium Confidence Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 0],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.confidenceScore }}",
+              "operation": "largerEqual",
+              "value2": 50
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "slack-high-confidence",
+      "name": "Slack - High Confidence Deal",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1450, -150],
+      "parameters": {
+        "authentication": "credential",
+        "resource": "message",
+        "channelId": "=C04DEALHIGH",
+        "text": "=🟢 *High Confidence Deal Registration* — Score: {{ $json.confidenceScore }}/100\n*Partner:* {{ $json.partnerName }} ({{ $json.partnerTier }})\n*Customer:* {{ $json.endCustomer }}\n*Value:* \\${{ Number($json.dealValue).toLocaleString() }}\n*Product:* {{ $json.productCategory }}\n*Win Rate:* {{ Math.round($json.winRateScore) }}% | *Expertise:* {{ Math.round($json.expertiseScore) }}/100\n*Recommendation:* Auto-approve with {{ $json.recommendedDiscount }}\n*ID:* {{ $json.registrationId }}",
+        "otherOptions": {
+          "sendAsUser": false
+        },
+        "credential": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "email-high-confidence",
+      "name": "Email - High Confidence to Partner",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1450, 0],
+      "parameters": {
+        "fromEmail": "channelops@yourcompany.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=✅ Deal Registration Approved — {{ $json.registrationId }}",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nGreat news! Your deal registration for *{{ $json.endCustomer }}* has been *intelligently scored and auto-approved*.\\n\\n📋 *Deal Details*\\n  Registration ID: {{ $json.registrationId }}\\n  Customer: {{ $json.endCustomer }}\\n  Value: \\${{ Number($json.dealValue).toLocaleString() }}\\n  Product: {{ $json.productCategory }}\\n\\n📊 *DISCERN Score: {{ $json.confidenceScore }}/100* (High Confidence)\\n\\nThis registration is valid for 90 days with exclusive deal rights.\\n\\n*Recommended Next Steps:*\\n1. Share your competitive battlecard with the prospect\\n2. Schedule a joint sales call if needed\\n3. Reference similar case studies from {{ $json.productCategory }}\\n\\nBest,\\nChannel Ops Team",
+        "options": {}
+      },
+      "credential": {
+        "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+        "name": "SMTP"
+      }
+    },
+    {
+      "id": "email-high-confidence-cm",
+      "name": "Email - High Confidence to Channel Manager",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1450, 150],
+      "parameters": {
+        "fromEmail": "channelops@yourcompany.com",
+        "toEmail": "={{ $json.channelManagerEmail }}",
+        "subject": "=🟢 High Confidence Deal: {{ $json.partnerName }} → {{ $json.endCustomer }} (\\${{ Number($json.dealValue).toLocaleString() }})",
+        "text": "=Your partner {{ $json.partnerName }} registered a deal with HIGH confidence ({{ $json.confidenceScore }}/100).\\n\\nCustomer: {{ $json.endCustomer }}\\nValue: \\${{ Number($json.dealValue).toLocaleString() }}\\nProduct: {{ $json.productCategory }}\\nWin Rate: {{ Math.round($json.winRateScore) }}%\\n\\nThis deal has been auto-approved. No action needed unless competitive situation changes.\\n\\nRegistration ID: {{ $json.registrationId }}",
+        "options": {}
+      },
+      "credential": {
+        "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+        "name": "SMTP"
+      }
+    },
+    {
+      "id": "slack-medium-confidence",
+      "name": "Slack - Medium Confidence Deal",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1450, -150],
+      "parameters": {
+        "authentication": "credential",
+        "resource": "message",
+        "channelId": "=C04DEALMED",
+        "text": "=🟡 *Medium Confidence Deal Registration* — Score: {{ $json.confidenceScore }}/100\n*Partner:* {{ $json.partnerName }} ({{ $json.partnerTier }})\n*Customer:* {{ $json.endCustomer }}\n*Value:* \\${{ Number($json.dealValue).toLocaleString() }}\n*Product:* {{ $json.productCategory }}\n*Notes:* {{ $json.riskFactors.replace('|', '\\n• ') }}\n*Recommendation:* Standard review — {{ $json.recommendedDiscount }}\n*ID:* {{ $json.registrationId }}\n*Coach:* {{ $json.coachingTips }}",
+        "otherOptions": {
+          "sendAsUser": false
+        },
+        "credential": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "email-medium-confidence",
+      "name": "Email - Medium Confidence to Partner",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1450, 0],
+      "parameters": {
+        "fromEmail": "channelops@yourcompany.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=🔄 Deal Registration Under Review — {{ $json.registrationId }}",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nYour deal registration for *{{ $json.endCustomer }}* has been received and our DISCERN intelligence system is reviewing it.\\n\\n📋 *Deal Details*\\n  Registration ID: {{ $json.registrationId }}\\n  Customer: {{ $json.endCustomer }}\\n  Value: \\${{ Number($json.dealValue).toLocaleString() }}\\n  Product: {{ $json.productCategory }}\\n\\n📊 *DISCERN Score: {{ $json.confidenceScore }}/100* (Medium Confidence)\\n\\nOur channel team will complete their review within 24 hours.\\n\\n*To improve your chances:*\\n{{ $json.coachingTips }}\\n\\nBest,\\nChannel Ops Team",
+        "options": {}
+      },
+      "credential": {
+        "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+        "name": "SMTP"
+      }
+    },
+    {
+      "id": "email-medium-cm",
+      "name": "Email - Medium Confidence to CM",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1450, 150],
+      "parameters": {
+        "fromEmail": "channelops@yourcompany.com",
+        "toEmail": "={{ $json.channelManagerEmail }}",
+        "subject": "=🟡 Medium Confidence Deal Needs Review: {{ $json.partnerName }} → {{ $json.endCustomer }} (\\${{ Number($json.dealValue).toLocaleString() }})",
+        "text": "=A deal requires your review. DISCERN scored it {{ $json.confidenceScore }}/100 (Medium confidence).\\n\\nPartner: {{ $json.partnerName }} ({{ $json.partnerTier }})\\nCustomer: {{ $json.endCustomer }}\\nValue: \\${{ Number($json.dealValue).toLocaleString() }}\\nProduct: {{ $json.productCategory }}\\n\\n*Risk Factors:*\\n• {{ $json.riskFactors.replace('|', '\\n• ') }}\\n\\n*DISCERN Coaching Recommendations:*\\n{{ $json.coachingTips }}\\n\\nReview at: https://n8n.example-channel.com/workflow/discern-review/{{ $json.registrationId }}\\n\\nRegistration ID: {{ $json.registrationId }}",
+        "options": {}
+      },
+      "credential": {
+        "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+        "name": "SMTP"
+      }
+    },
+    {
+      "id": "slack-low-confidence",
+      "name": "Slack - Low Confidence Deal",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1450, -150],
+      "parameters": {
+        "authentication": "credential",
+        "resource": "message",
+        "channelId": "=C04DEALLOW",
+        "text": "=🔴 *Low Confidence Deal Registration* — Score: {{ $json.confidenceScore }}/100 🚨\n*Partner:* {{ $json.partnerName }} ({{ $json.partnerTier }})\n*Customer:* {{ $json.endCustomer }}\n*Value:* \\${{ Number($json.dealValue).toLocaleString() }}\n*Product:* {{ $json.productCategory }}\n*Win Rate:* {{ Math.round($json.winRateScore) }}% | *Expertise:* {{ Math.round($json.expertiseScore) }}/100\n*Risk Factors:*\\n• {{ $json.riskFactors.replace('|', '\\n• ') }}\n*Required:* Channel manager escalation + coaching\n*ID:* {{ $json.registrationId }}",
+        "otherOptions": {
+          "sendAsUser": false
+        },
+        "credential": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "email-low-partner",
+      "name": "Email - Low Confidence to Partner",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1450, 0],
+      "parameters": {
+        "fromEmail": "channelops@yourcompany.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=📋 Deal Registration Received — Additional Info Needed — {{ $json.registrationId }}",
+        "text": "=Hi {{ $json.partnerName }},\\n\\nThank you for submitting your deal registration for *{{ $json.endCustomer }}*. Our team has received it and would like to connect with you to help position this deal for success.\\n\\n📋 *Deal Details*\\n  Registration ID: {{ $json.registrationId }}\\n  Customer: {{ $json.endCustomer }}\\n  Value: \\${{ Number($json.dealValue).toLocaleString() }}\\n  Product: {{ $json.productCategory }}\\n\\nYour channel manager ({{ $json.channelManagerName }}) will be reaching out shortly to:\\n1. Understand your strategy for this deal\\n2. Provide competitive positioning support\\n3. Align on next steps and potential discount authorization\\n\\nIn the meantime, here are some resources:\\n{{ $json.coachingTips }}\\n\\nBest,\\nChannel Ops Team",
+        "options": {}
+      },
+      "credential": {
+        "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+        "name": "SMTP"
+      }
+    },
+    {
+      "id": "email-low-cm-escalation",
+      "name": "Email - CM Escalation for Low Confidence",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1450, 150],
+      "parameters": {
+        "fromEmail": "channelops@yourcompany.com",
+        "toEmail": "={{ $json.channelManagerEmail }}",
+        "subject": "=🔴 ESCALATION: Low Confidence Deal — {{ $json.partnerName }} — {{ $json.endCustomer }} (\\${{ Number($json.dealValue).toLocaleString() }})",
+        "text": "=🚨 *ESCALATION REQUIRED*\\n\\nDISCERN has flagged a LOW confidence deal registration requiring your direct intervention.\\n\\nPartner: {{ $json.partnerName }} ({{ $json.partnerTier }})\\nCustomer: {{ $json.endCustomer }}\\nValue: \\${{ Number($json.dealValue).toLocaleString() }}\\nProduct: {{ $json.productCategory }}\\nScore: {{ $json.confidenceScore }}/100\\n\\n*Risk Factors Identified:*\\n• {{ $json.riskFactors.replace('|', '\\n• ') }}\\n\\n*DISCERN Recommended Actions:*\\n{{ $json.coachingTips }}\\n\\nPlease contact {{ $json.partnerName }} at {{ $json.partnerEmail }} within 24 hours to:\\n1. Schedule a pipeline review call\\n2. Provide competitive battlecards and positioning\\n3. Evaluate if joint sales engagement is warranted\\n4. Determine discount strategy\\n\\nReview deal: https://n8n.example-channel.com/workflow/discern-review/{{ $json.registrationId }}\\nRegistration ID: {{ $json.registrationId }}",
+        "options": {}
+      },
+      "credential": {
+        "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+        "name": "SMTP"
+      }
+    },
+    {
+      "id": "google-sheets-log-high",
+      "name": "Google Sheets - Log High Confidence Deal",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1450, 300],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "DISCERN_Deals",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Registration ID": "={{ $json.registrationId }}",
+            "Partner": "={{ $json.partnerName }}",
+            "Tier": "={{ $json.partnerTier }}",
+            "Customer": "={{ $json.endCustomer }}",
+            "Deal Value": "={{ $json.dealValue }}",
+            "Product Category": "={{ $json.productCategory }}",
+            "Confidence Score": "={{ $json.confidenceScore }}",
+            "Confidence Level": "={{ $json.confidenceLevel }}",
+            "Tier Score": "={{ $json.tierScore }}",
+            "Win Rate Score": "={{ $json.winRateScore }}",
+            "Deal Size Score": "={{ $json.dealSizeScore }}",
+            "Expertise Score": "={{ $json.expertiseScore }}",
+            "Velocity Score": "={{ $json.velocityScore }}",
+            "Competition Score": "={{ $json.competitionScore }}",
+            "Engagement Score": "={{ $json.engagementScore }}",
+            "Risk Factors": "={{ $json.riskFactors }}",
+            "Recommended Discount": "={{ $json.recommendedDiscount }}",
+            "Status": "=Auto-Approved",
+            "CM Email": "={{ $json.channelManagerEmail }}",
+            "Scored At": "={{ $json.scoredAt }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED",
+          "columnToMatchOn": "Registration ID",
+          "value": ""
+        }
+      },
+      "credentials": {
+        "googleSheetsApi": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "google-sheets-log-medium",
+      "name": "Google Sheets - Log Medium Confidence Deal",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1450, 300],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "DISCERN_Deals",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Registration ID": "={{ $json.registrationId }}",
+            "Partner": "={{ $json.partnerName }}",
+            "Tier": "={{ $json.partnerTier }}",
+            "Customer": "={{ $json.endCustomer }}",
+            "Deal Value": "={{ $json.dealValue }}",
+            "Product Category": "={{ $json.productCategory }}",
+            "Confidence Score": "={{ $json.confidenceScore }}",
+            "Confidence Level": "={{ $json.confidenceLevel }}",
+            "Tier Score": "={{ $json.tierScore }}",
+            "Win Rate Score": "={{ $json.winRateScore }}",
+            "Deal Size Score": "={{ $json.dealSizeScore }}",
+            "Expertise Score": "={{ $json.expertiseScore }}",
+            "Velocity Score": "={{ $json.velocityScore }}",
+            "Competition Score": "={{ $json.competitionScore }}",
+            "Engagement Score": "={{ $json.engagementScore }}",
+            "Risk Factors": "={{ $json.riskFactors }}",
+            "Recommended Discount": "={{ $json.recommendedDiscount }}",
+            "Status": "=Pending Review",
+            "CM Email": "={{ $json.channelManagerEmail }}",
+            "Scored At": "={{ $json.scoredAt }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED",
+          "columnToMatchOn": "Registration ID",
+          "value": ""
+        }
+      },
+      "credentials": {
+        "googleSheetsApi": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "google-sheets-log-low",
+      "name": "Google Sheets - Log Low Confidence Deal",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1450, 300],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "DISCERN_Deals",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Registration ID": "={{ $json.registrationId }}",
+            "Partner": "={{ $json.partnerName }}",
+            "Tier": "={{ $json.partnerTier }}",
+            "Customer": "={{ $json.endCustomer }}",
+            "Deal Value": "={{ $json.dealValue }}",
+            "Product Category": "={{ $json.productCategory }}",
+            "Confidence Score": "={{ $json.confidenceScore }}",
+            "Confidence Level": "={{ $json.confidenceLevel }}",
+            "Tier Score": "={{ $json.tierScore }}",
+            "Win Rate Score": "={{ $json.winRateScore }}",
+            "Deal Size Score": "={{ $json.dealSizeScore }}",
+            "Expertise Score": "={{ $json.expertiseScore }}",
+            "Velocity Score": "={{ $json.velocityScore }}",
+            "Competition Score": "={{ $json.competitionScore }}",
+            "Engagement Score": "={{ $json.engagementScore }}",
+            "Risk Factors": "={{ $json.riskFactors }}",
+            "Recommended Discount": "={{ $json.recommendedDiscount }}",
+            "Status": "=Escalated — CM Review Required",
+            "CM Email": "={{ $json.channelManagerEmail }}",
+            "Scored At": "={{ $json.scoredAt }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED",
+          "columnToMatchOn": "Registration ID",
+          "value": ""
+        }
+      },
+      "credentials": {
+        "googleSheetsApi": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID"
+      }
+    },
+    {
+      "id": "respond-high-confidence",
+      "name": "Respond - High Confidence",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1700, -150],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"auto_approved\",\"registrationId\":\"{{ $json.registrationId }}\",\"confidenceScore\":{{ $json.confidenceScore }},\"confidenceLevel\":\"{{ $json.confidenceLevel }}\",\"recommendedDiscount\":\"{{ $json.recommendedDiscount }}\",\"message\":\"Deal auto-approved based on high confidence score\"}"
+      }
+    },
+    {
+      "id": "respond-medium-confidence",
+      "name": "Respond - Medium Confidence",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1700, 0],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"pending_review\",\"registrationId\":\"{{ $json.registrationId }}\",\"confidenceScore\":{{ $json.confidenceScore }},\"confidenceLevel\":\"{{ $json.confidenceLevel }}\",\"riskFactors\":\"{{ $json.riskFactors }}\",\"message\":\"Deal under standard review — channel manager notified with coaching recommendations\"}"
+      }
+    },
+    {
+      "id": "respond-low-confidence",
+      "name": "Respond - Low Confidence",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1700, 150],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"escalated\",\"registrationId\":\"{{ $json.registrationId }}\",\"confidenceScore\":{{ $json.confidenceScore }},\"confidenceLevel\":\"{{ $json.confidenceLevel }}\",\"riskFactors\":\"{{ $json.riskFactors }}\",\"message\":\"Deal escalated — channel manager will contact you with support and next steps\"}"
+      }
+    },
+    {
+      "id": "pipeline-health-connector",
+      "name": "Pipeline Health Connector",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 400],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "totalPipelineValue",
+              "value": "={{ $json.body.totalPipelineValue || $json.totalPipelineValue || 2500000 }}"
+            },
+            {
+              "name": "registeredDealCount",
+              "value": "={{ $json.body.registeredDealCount || $json.registeredDealCount || 45 }}"
+            },
+            {
+              "name": "highConfidenceDeals",
+              "value": "={{ $json.body.highConfidenceDeals || $json.highConfidenceDeals || 18 }}"
+            },
+            {
+              "name": "mediumConfidenceDeals",
+              "value": "={{ $json.body.mediumConfidenceDeals || $json.mediumConfidenceDeals || 20 }}"
+            },
+            {
+              "name": "lowConfidenceDeals",
+              "value": "={{ $json.body.lowConfidenceDeals || $json.lowConfidenceDeals || 7 }}"
+            },
+            {
+              "name": "quarterlyTarget",
+              "value": "={{ $json.body.quarterlyTarget || $json.quarterlyTarget || 5000000 }}"
+            },
+            {
+              "name": "weightedPipeline",
+              "value": "={{ ($json.highConfidenceDeals * 10000 * 0.75) + ($json.mediumConfidenceDeals * 10000 * 0.50) + ($json.lowConfidenceDeals * 10000 * 0.25) }}"
+            }
+          ],
+          "string": [
+            {
+              "name": "pipelineHealth",
+              "value": "={{ $json.weightedPipeline >= $json.quarterlyTarget * 3 ? 'Excellent' : $json.weightedPipeline >= $json.quarterlyTarget * 2 ? 'Good' : $json.weightedPipeline >= $json.quarterlyTarget * 1.5 ? 'Adequate' : $json.weightedPipeline >= $json.quarterlyTarget ? 'Below Target' : 'Critical' }}"
+            },
+            {
+              "name": "highConfidenceRatio",
+              "value": "={{ $json.registeredDealCount > 0 ? Math.round(($json.highConfidenceDeals / $json.registeredDealCount) * 100) + '%' : '0%' }}"
+            },
+            {
+              "name": "coverageRatio",
+              "value": "={{ $json.totalPipelineValue > 0 && $json.quarterlyTarget > 0 ? ($json.totalPipelineValue / $json.quarterlyTarget).toFixed(1) + 'x' : '0.0x' }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "respond-pipeline-health",
+      "name": "Respond - Pipeline Health",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 400],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"ok\",\"pipelineHealth\":\"{{ $json.pipelineHealth }}\",\"totalPipelineValue\":{{ $json.totalPipelineValue }},\"registeredDealCount\":{{ $json.registeredDealCount }},\"weightedPipeline\":{{ $json.weightedPipeline }},\"coverageRatio\":\"{{ $json.coverageRatio }}\",\"highConfidenceRatio\":\"{{ $json.highConfidenceRatio }}\",\"breakdown\":{\"highConfidence\":{{ $json.highConfidenceDeals }},\"mediumConfidence\":{{ $json.mediumConfidenceDeals }},\"lowConfidence\":{{ $json.lowConfidenceDeals }}},\"quarterlyTarget\":{{ $json.quarterlyTarget }}}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - DISCERN Inbound": {
+      "main": [
+        [
+          {
+            "node": "Format Deal Registration Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Deal Registration Data": {
+      "main": [
+        [
+          {
+            "node": "Route by Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Action": {
+      "main": [
+        [
+          {
+            "node": "Calculate Predictive Deal Score",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pipeline Health Connector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Predictive Deal Score": {
+      "main": [
+        [
+          {
+            "node": "Route by Confidence Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Confidence Score": {
+      "main": [
+        [
+          {
+            "node": "Slack - High Confidence Deal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Medium Confidence Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Medium Confidence Check": {
+      "main": [
+        [
+          {
+            "node": "Slack - Medium Confidence Deal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack - Low Confidence Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - High Confidence Deal": {
+      "main": [
+        [
+          {
+            "node": "Email - High Confidence to Partner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - High Confidence to Partner": {
+      "main": [
+        [
+          {
+            "node": "Email - High Confidence to Channel Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - High Confidence to Channel Manager": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Log High Confidence Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Log High Confidence Deal": {
+      "main": [
+        [
+          {
+            "node": "Respond - High Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Medium Confidence Deal": {
+      "main": [
+        [
+          {
+            "node": "Email - Medium Confidence to Partner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Medium Confidence to Partner": {
+      "main": [
+        [
+          {
+            "node": "Email - Medium Confidence to CM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Medium Confidence to CM": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Log Medium Confidence Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Log Medium Confidence Deal": {
+      "main": [
+        [
+          {
+            "node": "Respond - Medium Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Low Confidence Deal": {
+      "main": [
+        [
+          {
+            "node": "Email - Low Confidence to Partner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Low Confidence to Partner": {
+      "main": [
+        [
+          {
+            "node": "Email - CM Escalation for Low Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - CM Escalation for Low Confidence": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Log Low Confidence Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Log Low Confidence Deal": {
+      "main": [
+        [
+          {
+            "node": "Respond - Low Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pipeline Health Connector": {
+      "main": [
+        [
+          {
+            "node": "Respond - Pipeline Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Denver",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "tags": [
+    {
+      "name": "channel"
+    },
+    {
+      "name": "deal-intelligence"
+    },
+    {
+      "name": "partner"
+    },
+    {
+      "name": "predictive"
+    },
+    {
+      "name": "ai"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+[project]
+name = "channel-tools-partner-portal"
+version = "0.1.0"
+description = "MCP server for partner portal self-service: locator, MDF, NFR quiz, orientation, deal management"
+requires-python = ">=3.11"
+dependencies = ["mcp>=1.0.0"]

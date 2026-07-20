@@ -1,0 +1,37 @@
+services:
+  console:
+    build: .
+    ports: ["8090:8090"]
+    environment:
+      - CHANNEL_DB=/data/channel.db
+    volumes: ["channel-data:/data"]
+    command: uvicorn channel_platform.web:app --host 0.0.0.0 --port 8090
+
+  dashboard:
+    build: .
+    ports: ["8080:8080"]
+    environment:
+      - APOLLO_API_KEY=${APOLLO_API_KEY}
+      - CHANNEL_DB=/data/channel.db
+    volumes: ["channel-data:/data"]
+    working_dir: /app/micro-apps/lead-dashboard
+    command: uvicorn main:app --host 0.0.0.0 --port 8080
+
+  mcp-channel-mgmt:
+    build: .
+    stdin_open: true
+    working_dir: /app/mcp-servers/channel-mgmt
+    command: python3 src/main.py
+    volumes: ["channel-data:/data"]
+    environment: ["CHANNEL_DB=/data/channel.db"]
+
+  mcp-partner-portal:
+    build: .
+    stdin_open: true
+    working_dir: /app/mcp-servers/partner-portal
+    command: python3 src/main.py
+    volumes: ["channel-data:/data"]
+    environment: ["CHANNEL_DB=/data/channel.db"]
+
+volumes:
+  channel-data:

@@ -1,0 +1,1615 @@
+{
+  "name": "Partner Promotions & SPIF (Sales Performance Incentive Fund) Automation",
+  "nodes": [
+    {
+      "id": "webhook-promotions-inbound",
+      "name": "Webhook - Promotions Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "partner-promotions-spif",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "partner-promotions-hook"
+    },
+    {
+      "id": "format-promotion-data",
+      "name": "Format Promotion Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "action",
+              "value": "={{ $json.body.action || $json.action || 'list_active_campaigns' }}"
+            },
+            {
+              "name": "campaignId",
+              "value": "={{ $json.body.campaignId || $json.body.campaign_id || $json.campaignId || '' }}"
+            },
+            {
+              "name": "campaignName",
+              "value": "={{ $json.body.campaignName || $json.body.campaign_name || $json.campaignName || '' }}"
+            },
+            {
+              "name": "partnerId",
+              "value": "={{ $json.body.partnerId || $json.body.partner_id || $json.partnerId || '' }}"
+            },
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName || $json.body.partner_name || $json.partnerName || '' }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.body.partnerEmail || $json.body.partner_email || $json.partnerEmail || '' }}"
+            },
+            {
+              "name": "partnerTier",
+              "value": "={{ $json.body.partnerTier || $json.body.tier || $json.partnerTier || 'Authorized' }}"
+            },
+            {
+              "name": "channelManagerEmail",
+              "value": "={{ $json.body.channelManagerEmail || $json.body.cm_email || $json.channelManagerEmail || '' }}"
+            },
+            {
+              "name": "channelManagerName",
+              "value": "={{ $json.body.channelManagerName || $json.body.cm_name || $json.channelManagerName || '' }}"
+            },
+            {
+              "name": "description",
+              "value": "={{ $json.body.description || $json.description || '' }}"
+            },
+            {
+              "name": "status",
+              "value": "={{ $json.body.status || $json.status || 'pending' }}"
+            },
+            {
+              "name": "createdAt",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "budgetTotal",
+              "value": "={{ $json.body.budgetTotal || $json.body.budget_total || $json.budgetTotal || 0 }}"
+            },
+            {
+              "name": "spiffAmount",
+              "value": "={{ $json.body.spiffAmount || $json.body.spiff_amount || $json.spiffAmount || 0 }}"
+            },
+            {
+              "name": "claimAmount",
+              "value": "={{ $json.body.claimAmount || $json.body.claim_amount || $json.claimAmount || 0 }}"
+            },
+            {
+              "name": "dealValue",
+              "value": "={{ $json.body.dealValue || $json.body.deal_value || $json.dealValue || 0 }}"
+            },
+            {
+              "name": "minDealSize",
+              "value": "={{ $json.body.minDealSize || $json.body.min_deal_size || $json.minDealSize || 0 }}"
+            },
+            {
+              "name": "maxPayoutPerPartner",
+              "value": "={{ $json.body.maxPayoutPerPartner || $json.body.max_payout_per_partner || $json.maxPayoutPerPartner || 0 }}"
+            },
+            {
+              "name": "budgetUsed",
+              "value": "={{ $json.body.budgetUsed || $json.body.budget_used || $json.budgetUsed || 0 }}"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "autoApprove",
+              "value": "={{ $json.body.autoApprove || $json.body.auto_approve || $json.autoApprove || false }}"
+            }
+          ],
+          "dateTime": [
+            {
+              "name": "startDate",
+              "value": "={{ $json.body.startDate || $json.body.start_date || $json.startDate || new Date().toISOString().split('T')[0] }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $json.body.endDate || $json.body.end_date || $json.endDate || '' }}"
+            },
+            {
+              "name": "claimDeadline",
+              "value": "={{ $json.body.claimDeadline || $json.body.claim_deadline || $json.claimDeadline || '' }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "route-promotion-action",
+      "name": "Route by Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.action }}",
+        "rules": [
+          {
+            "value2": "create_campaign",
+            "output": 0
+          },
+          {
+            "value2": "register_promotion_deal",
+            "output": 1
+          },
+          {
+            "value2": "submit_claim",
+            "output": 2
+          },
+          {
+            "value2": "check_budget",
+            "output": 3
+          },
+          {
+            "value2": "list_active_campaigns",
+            "output": 4
+          }
+        ],
+        "fallbackOutput": 5
+      }
+    },
+    {
+      "id": "validate-campaign",
+      "name": "Validate Campaign Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 100],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "campaignId",
+              "value": "={{ $json.campaignId || 'CAMP-' + Date.now() }}"
+            },
+            {
+              "name": "campaignName",
+              "value": "={{ $json.campaignName }}"
+            },
+            {
+              "name": "description",
+              "value": "={{ $json.description }}"
+            },
+            {
+              "name": "status",
+              "value": "=Active"
+            },
+            {
+              "name": "validatedAt",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "budgetTotal",
+              "value": "={{ $json.budgetTotal }}"
+            },
+            {
+              "name": "budgetRemaining",
+              "value": "={{ $json.budgetTotal }}"
+            },
+            {
+              "name": "spiffAmount",
+              "value": "={{ $json.spiffAmount }}"
+            },
+            {
+              "name": "minDealSize",
+              "value": "={{ $json.minDealSize }}"
+            },
+            {
+              "name": "maxPayoutPerPartner",
+              "value": "={{ $json.maxPayoutPerPartner }}"
+            }
+          ],
+          "dateTime": [
+            {
+              "name": "startDate",
+              "value": "={{ $json.startDate }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $json.endDate }}"
+            },
+            {
+              "name": "claimDeadline",
+              "value": "={{ $json.claimDeadline || $json.endDate.split('T')[0] + 'P30D' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-valid-campaign",
+      "name": "Campaign Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 100],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.campaignName }}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{ $json.budgetTotal }}",
+              "operation": "larger",
+              "value2": 0
+            },
+            {
+              "value1": "={{ $json.spiffAmount }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "campaign-create-slack",
+      "name": "Slack - New Campaign Created",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1250, 0],
+      "parameters": {
+        "authentication": "credential",
+        "resource": "message",
+        "channelId": "=C04SPIFCAMPAIGN",
+        "text": "=🚀 *New Promotion/SPIF Campaign Created*\n*Campaign:* {{ $json.campaignName }}\n*ID:* {{ $json.campaignId }}\n*Budget:* ${{ $json.budgetTotal.toLocaleString() }}\n*SPIF Amount:* ${{ $json.spiffAmount }}\n*Min Deal Size:* ${{ $json.minDealSize.toLocaleString() }}\n*Max Per Partner:* ${{ $json.maxPayoutPerPartner.toLocaleString() }}\n*Valid:* {{ $json.startDate }} → {{ $json.endDate }}\n*Claim Deadline:* {{ $json.claimDeadline }}",
+        "otherOptions": {
+          "sendAsUser": false
+        },
+        "credential": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "campaign-create-email",
+      "name": "Email - Campaign Notification to CMs",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1250, 150],
+      "parameters": {
+        "fromEmail": "channelops@yourcompany.com",
+        "toEmail": "={{ $json.channelManagerEmail || 'channel-managers@yourcompany.com' }}",
+        "subject": "=🚀 New Promotion: {{ $json.campaignName }} — SPIF of ${{ $json.spiffAmount }}",
+        "text": "A new promotion has been created:\n\nCampaign: {{ $json.campaignName }}\nDescription: {{ $json.description }}\nBudget: ${{ $json.budgetTotal.toLocaleString() }}\nSPIF per deal: ${{ $json.spiffAmount }}\nMinimum deal: ${{ $json.minDealSize.toLocaleString() }}\nMax per partner: ${{ $json.maxPayoutPerPartner.toLocaleString() }}\nValid: {{ $json.startDate }} → {{ $json.endDate }}\nClaim deadline: {{ $json.claimDeadline }}\n\nPromote this to your partners!",
+        "options": {}
+      },
+      "credential": {
+        "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+        "name": "SMTP"
+      }
+    },
+    {
+      "id": "campaign-create-sheets",
+      "name": "Google Sheets - Log Campaign",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1250, 300],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_PROMOTIONS_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": "Campaigns",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "schema": {
+              "string": [
+                { "name": "CampaignID" },
+                { "name": "CampaignName" },
+                { "name": "Description" },
+                { "name": "Status" },
+                { "name": "StartDate" },
+                { "name": "EndDate" },
+                { "name": "ClaimDeadline" },
+                { "name": "BudgetTotal" },
+                { "name": "BudgetRemaining" },
+                { "name": "SPIFFAmount" },
+                { "name": "MinDealSize" },
+                { "name": "MaxPayoutPerPartner" },
+                { "name": "CreatedAt" }
+              ]
+            }
+          }
+        },
+        "columnsByName": {
+          "CampaignID": "={{ $json.campaignId }}",
+          "CampaignName": "={{ $json.campaignName }}",
+          "Description": "={{ $json.description }}",
+          "Status": "={{ $json.status }}",
+          "StartDate": "={{ $json.startDate }}",
+          "EndDate": "={{ $json.endDate }}",
+          "ClaimDeadline": "={{ $json.claimDeadline }}",
+          "BudgetTotal": "={{ $json.budgetTotal }}",
+          "BudgetRemaining": "={{ $json.budgetRemaining }}",
+          "SPIFFAmount": "={{ $json.spiffAmount }}",
+          "MinDealSize": "={{ $json.minDealSize }}",
+          "MaxPayoutPerPartner": "={{ $json.maxPayoutPerPartner }}",
+          "CreatedAt": "={{ $json.createdAt }}"
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED",
+          "locationDefinition": "sheet",
+          "rangeDefinition": "auto"
+        }
+      },
+      "credential": {
+        "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+        "name": "Google Sheets"
+      }
+    },
+    {
+      "id": "campaign-create-response",
+      "name": "Respond - Campaign Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 150],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"create_campaign\",\n  \"campaignId\": \"{{ $json.campaignId }}\",\n  \"campaignName\": \"{{ $json.campaignName }}\",\n  \"status\": \"Active\",\n  \"budgetTotal\": {{ $json.budgetTotal }},\n  \"budgetRemaining\": {{ $json.budgetRemaining }},\n  \"spiffAmount\": {{ $json.spiffAmount }},\n  \"validFrom\": \"{{ $json.startDate }}\",\n  \"validTo\": \"{{ $json.endDate }}\",\n  \"message\": \"Promotion campaign created and active\"\n}"
+      }
+    },
+    {
+      "id": "campaign-invalid-response",
+      "name": "Respond - Campaign Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 500],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"action\": \"create_campaign\",\n  \"message\": \"Invalid campaign data. Campaign name, budget (>$0), and SPIF amount (>$0) are required.\"\n}"
+      }
+    },
+    {
+      "id": "validate-promotion-deal",
+      "name": "Validate Promotion Deal Registration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 350],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "registrationId",
+              "value": "={{ 'REG-' + Date.now() }}"
+            },
+            {
+              "name": "partnerId",
+              "value": "={{ $json.partnerId }}"
+            },
+            {
+              "name": "partnerName",
+              "value": "={{ $json.partnerName }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.partnerEmail }}"
+            },
+            {
+              "name": "partnerTier",
+              "value": "={{ $json.partnerTier }}"
+            },
+            {
+              "name": "campaignId",
+              "value": "={{ $json.campaignId }}"
+            },
+            {
+              "name": "dealDescription",
+              "value": "={{ $json.description || 'Deal registered under promotion' }}"
+            },
+            {
+              "name": "status",
+              "value": "=Registered"
+            },
+            {
+              "name": "registeredAt",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "dealValue",
+              "value": "={{ $json.dealValue }}"
+            },
+            {
+              "name": "spiffAmount",
+              "value": "={{ $json.spiffAmount }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-valid-deal-registration",
+      "name": "Deal Registration Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 350],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.partnerId }}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{ $json.campaignId }}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{ $json.dealValue }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "deal-registration-slack",
+      "name": "Slack - New Promotion Deal Registered",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1250, 250],
+      "parameters": {
+        "authentication": "credential",
+        "resource": "message",
+        "channelId": "=C04SPIFDEALS",
+        "text": "=📋 *Promotion Deal Registered*\n*Partner:* {{ $json.partnerName }} ({{ $json.partnerTier }})\n*Campaign:* {{ $json.campaignId }}\n*Deal Value:* ${{ $json.dealValue.toLocaleString() }}\n*SPIF Earnable:* ${{ $json.spiffAmount }}\n*Reg ID:* {{ $json.registrationId }}",
+        "otherOptions": {
+          "sendAsUser": false
+        },
+        "credential": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "deal-registration-sheets",
+      "name": "Google Sheets - Log Deal Registration",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1250, 400],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_PROMOTIONS_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": "DealRegistrations",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "schema": {
+              "string": [
+                { "name": "RegistrationID" },
+                { "name": "CampaignID" },
+                { "name": "PartnerID" },
+                { "name": "PartnerName" },
+                { "name": "PartnerTier" },
+                { "name": "DealDescription" },
+                { "name": "Status" },
+                { "name": "DealValue" },
+                { "name": "SPIFFAmount" },
+                { "name": "RegisteredAt" }
+              ]
+            }
+          }
+        },
+        "columnsByName": {
+          "RegistrationID": "={{ $json.registrationId }}",
+          "CampaignID": "={{ $json.campaignId }}",
+          "PartnerID": "={{ $json.partnerId }}",
+          "PartnerName": "={{ $json.partnerName }}",
+          "PartnerTier": "={{ $json.partnerTier }}",
+          "DealDescription": "={{ $json.dealDescription }}",
+          "Status": "={{ $json.status }}",
+          "DealValue": "={{ $json.dealValue }}",
+          "SPIFFAmount": "={{ $json.spiffAmount }}",
+          "RegisteredAt": "={{ $json.registeredAt }}"
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED",
+          "locationDefinition": "sheet",
+          "rangeDefinition": "auto"
+        }
+      },
+      "credential": {
+        "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+        "name": "Google Sheets"
+      }
+    },
+    {
+      "id": "deal-registration-email",
+      "name": "Email - Deal Registered Confirmation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1250, 550],
+      "parameters": {
+        "fromEmail": "channelops@yourcompany.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=✅ Promotion Deal Registered — {{ $json.campaignId }}",
+        "text": "Hi {{ $json.partnerName }},\n\nYour deal has been registered under promotion campaign {{ $json.campaignId }}.\n\nRegistration ID: {{ $json.registrationId }}\nDeal Value: ${{ $json.dealValue.toLocaleString() }}\nPotential SPIF: ${{ $json.spiffAmount }}\n\nOnce the deal closes, submit a claim with proof of close to receive your SPIF payout.\n\nSubmit claims via: POST /partner-promotions-spif with action=submit_claim\n\nCheers,\nChannel Ops",
+        "options": {}
+      },
+      "credential": {
+        "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+        "name": "SMTP"
+      }
+    },
+    {
+      "id": "deal-registration-response",
+      "name": "Respond - Deal Registered",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"register_promotion_deal\",\n  \"registrationId\": \"{{ $json.registrationId }}\",\n  \"campaignId\": \"{{ $json.campaignId }}\",\n  \"partnerName\": \"{{ $json.partnerName }}\",\n  \"dealValue\": {{ $json.dealValue }},\n  \"spiffAmount\": {{ $json.spiffAmount }},\n  \"status\": \"Registered\",\n  \"message\": \"Deal registered under promotion campaign. Close the deal and submit a claim for SPIF payout.\"\n}"
+      }
+    },
+    {
+      "id": "deal-registration-invalid-response",
+      "name": "Respond - Deal Registration Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 700],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"action\": \"register_promotion_deal\",\n  \"message\": \"Invalid deal registration. partnerId, campaignId, and dealValue (>$0) are required.\"\n}"
+      }
+    },
+    {
+      "id": "validate-claim",
+      "name": "Validate Claim Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 600],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "claimId",
+              "value": "={{ 'CLM-' + Date.now() }}"
+            },
+            {
+              "name": "registrationId",
+              "value": "={{ $json.registrationId }}"
+            },
+            {
+              "name": "partnerId",
+              "value": "={{ $json.partnerId }}"
+            },
+            {
+              "name": "partnerName",
+              "value": "={{ $json.partnerName }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.partnerEmail }}"
+            },
+            {
+              "name": "campaignId",
+              "value": "={{ $json.campaignId }}"
+            },
+            {
+              "name": "status",
+              "value": "=Pending Approval"
+            },
+            {
+              "name": "submittedAt",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "claimAmount",
+              "value": "={{ $json.claimAmount }}"
+            },
+            {
+              "name": "dealValue",
+              "value": "={{ $json.dealValue }}"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "proofProvided",
+              "value": "={{ $json.proofProvided || $json.body.proofProvided || false }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-valid-claim",
+      "name": "Claim Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 600],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.registrationId }}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{ $json.claimAmount }}",
+              "operation": "larger",
+              "value2": 0
+            },
+            {
+              "value1": "={{ $json.proofProvided }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "route-claim-by-amount",
+      "name": "Route Claim by Amount",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [1250, 600],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.autoApprove ? 'auto' : ($json.claimAmount <= 500 ? 'auto' : 'manual') }}",
+        "rules": [
+          {
+            "value2": "auto",
+            "output": 0
+          },
+          {
+            "value2": "manual",
+            "output": 1
+          }
+        ],
+        "fallbackOutput": 0
+      }
+    },
+    {
+      "id": "auto-approve-claim",
+      "name": "Auto-Approve Claim",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1450, 500],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "=Approved"
+            },
+            {
+              "name": "approvedAt",
+              "value": "={{ new Date().toISOString() }}"
+            },
+            {
+              "name": "approvalMethod",
+              "value": "=Auto (Amount ≤ $500)"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "manual-approval-required",
+      "name": "Manual Approval Required",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1450, 700],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "=Pending Manager Review"
+            },
+            {
+              "name": "flaggedAt",
+              "value": "={{ new Date().toISOString() }}"
+            },
+            {
+              "name": "flagReason",
+              "value": "=Claim amount (${{ $json.claimAmount }}) exceeds auto-approval threshold ($500)"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "claim-auto-slack",
+      "name": "Slack - Claim Auto-Approved",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1650, 400],
+      "parameters": {
+        "authentication": "credential",
+        "resource": "message",
+        "channelId": "=C04SPIFCLAIMS",
+        "text": "=✅ *SPIF Claim Auto-Approved*\n*Partner:* {{ $json.partnerName }}\n*Campaign:* {{ $json.campaignId }}\n*Claim Amount:* ${{ $json.claimAmount }}\n*Claim ID:* {{ $json.claimId }}\n*Status:* Approved (Auto, ≤$500)\n*Paid to:* {{ $json.partnerEmail }}",
+        "otherOptions": {
+          "sendAsUser": false
+        },
+        "credential": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "claim-auto-email",
+      "name": "Email - SPIF Claim Auto-Approved",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1650, 550],
+      "parameters": {
+        "fromEmail": "channelops@yourcompany.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=🎉 SPIF Claim Approved! ${{ $json.claimAmount }} Pending Payout",
+        "text": "Hi {{ $json.partnerName }},\n\nGreat news! Your SPIF claim for ${{ $json.claimAmount }} has been auto-approved.\n\nClaim ID: {{ $json.claimId }}\nCampaign: {{ $json.campaignId }}\nStatus: Approved ✅\nPayment: Will be processed within 30 days\n\nThank you for your partnership!\n\nCheers,\nChannel Ops",
+        "options": {}
+      },
+      "credential": {
+        "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+        "name": "SMTP"
+      }
+    },
+    {
+      "id": "claim-manual-slack",
+      "name": "Slack - Claim Needs Manager Review",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1650, 650],
+      "parameters": {
+        "authentication": "credential",
+        "resource": "message",
+        "channelId": "=C04SPIFREVIEW",
+        "text": "=⚠️ *SPIF Claim Requires Review*\n*Partner:* {{ $json.partnerName }} ({{ $json.partnerTier }})\n*Campaign:* {{ $json.campaignId }}\n*Claim Amount:* ${{ $json.claimAmount }}\n*Deal Value:* ${{ $json.dealValue.toLocaleString() }}\n*Claim ID:* {{ $json.claimId }}\n*Reason:* Amount exceeds $500 auto-approval threshold\n\n*Review:* Use action=review_claim with {claimId, decision: 'approve'|'deny', comments}",
+        "otherOptions": {
+          "sendAsUser": false
+        },
+        "credential": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "claim-manual-email-cm",
+      "name": "Email - Claim Requires Review",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1650, 800],
+      "parameters": {
+        "fromEmail": "channelops@yourcompany.com",
+        "toEmail": "={{ $json.channelManagerEmail || 'channel-managers@yourcompany.com' }}",
+        "subject": "=⚠️ SPIF Claim #{{ $json.claimId }} Needs Your Review — ${{ $json.claimAmount }}",
+        "text": "A SPIF claim requires your review:\n\nClaim ID: {{ $json.claimId }}\nPartner: {{ $json.partnerName }} ({{ $json.partnerTier }})\nCampaign: {{ $json.campaignId }}\nAmount: ${{ $json.claimAmount }}\nDeal Value: ${{ $json.dealValue.toLocaleString() }}\nReason: Exceeds $500 auto-approval threshold\n\nTo approve/deny, POST to:\nPOST /partner-promotions-spif with {\n  action: 'review_claim',\n  claimId: '{{ $json.claimId }}',\n  decision: 'approve' | 'deny',\n  comments: '...'\n}",
+        "options": {}
+      },
+      "credential": {
+        "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+        "name": "SMTP"
+      }
+    },
+    {
+      "id": "claim-manual-email-partner",
+      "name": "Email - SPIF Claim Under Review",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1650, 950],
+      "parameters": {
+        "fromEmail": "channelops@yourcompany.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=🔄 SPIF Claim #{{ $json.claimId }} Under Review",
+        "text": "Hi {{ $json.partnerName }},\n\nYour SPIF claim for ${{ $json.claimAmount }} has been received and is under manager review.\n\nClaim ID: {{ $json.claimId }}\nCampaign: {{ $json.campaignId }}\nStatus: Pending Manager Review ⏳\n\nYour channel manager has been notified. You'll receive an update once the review is complete.\n\nCheers,\nChannel Ops",
+        "options": {}
+      },
+      "credential": {
+        "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+        "name": "SMTP"
+      }
+    },
+    {
+      "id": "claim-sheets-log",
+      "name": "Google Sheets - Log Claim",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1850, 650],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_PROMOTIONS_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": "Claims",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "schema": {
+              "string": [
+                { "name": "ClaimID" },
+                { "name": "RegistrationID" },
+                { "name": "CampaignID" },
+                { "name": "PartnerID" },
+                { "name": "PartnerName" },
+                { "name": "PartnerEmail" },
+                { "name": "Status" },
+                { "name": "ClaimAmount" },
+                { "name": "DealValue" },
+                { "name": "ApprovalMethod" },
+                { "name": "ApprovedAt" },
+                { "name": "SubmittedAt" }
+              ]
+            }
+          }
+        },
+        "columnsByName": {
+          "ClaimID": "={{ $json.claimId }}",
+          "RegistrationID": "={{ $json.registrationId }}",
+          "CampaignID": "={{ $json.campaignId }}",
+          "PartnerID": "={{ $json.partnerId }}",
+          "PartnerName": "={{ $json.partnerName }}",
+          "PartnerEmail": "={{ $json.partnerEmail }}",
+          "Status": "={{ $json.status }}",
+          "ClaimAmount": "={{ $json.claimAmount }}",
+          "DealValue": "={{ $json.dealValue }}",
+          "ApprovalMethod": "={{ $json.approvalMethod || 'Pending' }}",
+          "ApprovedAt": "={{ $json.approvedAt || '' }}",
+          "SubmittedAt": "={{ $json.submittedAt }}"
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED",
+          "locationDefinition": "sheet",
+          "rangeDefinition": "auto"
+        }
+      },
+      "credential": {
+        "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+        "name": "Google Sheets"
+      }
+    },
+    {
+      "id": "claim-auto-response",
+      "name": "Respond - Claim Auto-Approved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 450],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"submit_claim\",\n  \"claimId\": \"{{ $json.claimId }}\",\n  \"partnerName\": \"{{ $json.partnerName }}\",\n  \"campaignId\": \"{{ $json.campaignId }}\",\n  \"claimAmount\": {{ $json.claimAmount }},\n  \"status\": \"Approved\",\n  \"approvalMethod\": \"Auto (≤$500)\",\n  \"message\": \"Claim auto-approved! Payment will be processed within 30 days.\"\n}"
+      }
+    },
+    {
+      "id": "claim-manual-response",
+      "name": "Respond - Claim Pending Review",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 850],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"submit_claim\",\n  \"claimId\": \"{{ $json.claimId }}\",\n  \"partnerName\": \"{{ $json.partnerName }}\",\n  \"campaignId\": \"{{ $json.campaignId }}\",\n  \"claimAmount\": {{ $json.claimAmount }},\n  \"status\": \"Pending Manager Review\",\n  \"message\": \"Claim submitted and pending manager review. Your channel manager has been notified.\"\n}"
+      }
+    },
+    {
+      "id": "claim-invalid-response",
+      "name": "Respond - Claim Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 800],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"action\": \"submit_claim\",\n  \"message\": \"Invalid claim. registrationId, claimAmount (>$0), dealValue, and proofProvided=true are required.\"\n}"
+      }
+    },
+    {
+      "id": "check-budget-logic",
+      "name": "Check Budget Logic",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 850],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "campaignId",
+              "value": "={{ $json.campaignId }}"
+            },
+            {
+              "name": "checkedAt",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "budgetTotal",
+              "value": "={{ $json.budgetTotal }}"
+            },
+            {
+              "name": "budgetUsed",
+              "value": "={{ $json.budgetUsed }}"
+            },
+            {
+              "name": "budgetRemaining",
+              "value": "={{ $json.budgetTotal - $json.budgetUsed }}"
+            },
+            {
+              "name": "utilizationPct",
+              "value": "={{ $json.budgetTotal > 0 ? Math.round(($json.budgetUsed / $json.budgetTotal) * 100) : 0 }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "if-budget-warning",
+      "name": "Budget Warning?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 850],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.utilizationPct }}",
+              "operation": "larger",
+              "value2": 80
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "budget-slack-warning",
+      "name": "Slack - Budget Warning",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1250, 850],
+      "parameters": {
+        "authentication": "credential",
+        "resource": "message",
+        "channelId": "=C04SPIFCAMPAIGN",
+        "text": "=💰 *Budget Warning: {{ $json.campaignId }}*\n*Budget:* ${{ $json.budgetTotal.toLocaleString() }}\n*Used:* ${{ $json.budgetUsed.toLocaleString() }} ({{ $json.utilizationPct }}%)\n*Remaining:* ${{ $json.budgetRemaining.toLocaleString() }}\n\n⚠️ Over 80% utilized — consider pausing new registrations or increasing budget.",
+        "otherOptions": {
+          "sendAsUser": false
+        },
+        "credential": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "budget-response",
+      "name": "Respond - Budget Check",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 850],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"check_budget\",\n  \"campaignId\": \"{{ $json.campaignId }}\",\n  \"budgetTotal\": {{ $json.budgetTotal }},\n  \"budgetUsed\": {{ $json.budgetUsed }},\n  \"budgetRemaining\": {{ $json.budgetRemaining }},\n  \"utilizationPct\": {{ $json.utilizationPct }},\n  \"budgetWarning\": {{ $json.utilizationPct > 80 ? 'true' : 'false' }}\n}"
+      }
+    },
+    {
+      "id": "list-campaigns-logic",
+      "name": "List Active Campaigns Stub",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 1000],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "campaigns",
+              "value": "=[{\"campaignId\":\"CAMP-001\",\"campaignName\":\"Q3 End-of-Quarter SPIF\",\"status\":\"Active\",\"spiffAmount\":250,\"budgetTotal\":25000,\"startDate\":\"2026-07-01\",\"endDate\":\"2026-09-30\"},{\"campaignId\":\"CAMP-002\",\"campaignName\":\"New Product Launch Bonus\",\"status\":\"Active\",\"spiffAmount\":500,\"budgetTotal\":50000,\"startDate\":\"2026-08-01\",\"endDate\":\"2026-10-31\"},{\"campaignId\":\"CAMP-003\",\"campaignName\":\"Platinum Partner Accelerator\",\"status\":\"Active\",\"spiffAmount\":1000,\"budgetTotal\":100000,\"tier_restriction\":\"Platinum\",\"startDate\":\"2026-06-01\",\"endDate\":\"2026-12-31\"}]"
+            },
+            {
+              "name": "count",
+              "value": "=3"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "list-campaigns-response",
+      "name": "Respond - Active Campaigns",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 1000],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"list_active_campaigns\",\n  \"count\": {{ $json.count }},\n  \"campaigns\": {{ $json.campaigns }},\n  \"message\": \"Active promotion campaigns retrieved. Use action=register_promotion_deal to register a deal under a campaign.\"\n}"
+      }
+    },
+    {
+      "id": "unknown-action-response",
+      "name": "Respond - Unknown Action",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 1150],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Unknown action. Valid actions: create_campaign, register_promotion_deal, submit_claim, check_budget, list_active_campaigns\"\n}"
+      }
+    },
+    {
+      "id": "create-campaign-connector",
+      "name": "Create Campaign Connector",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [700, 100],
+      "parameters": {}
+    },
+    {
+      "id": "register-deal-connector",
+      "name": "Register Deal Connector",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [700, 350],
+      "parameters": {}
+    },
+    {
+      "id": "submit-claim-connector",
+      "name": "Submit Claim Connector",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [700, 600],
+      "parameters": {}
+    },
+    {
+      "id": "check-budget-connector",
+      "name": "Check Budget Connector",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [700, 850],
+      "parameters": {}
+    },
+    {
+      "id": "list-campaigns-connector",
+      "name": "List Campaigns Connector",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [700, 1000],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Webhook - Promotions Inbound": {
+      "main": [
+        [
+          {
+            "node": "Format Promotion Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Promotion Data": {
+      "main": [
+        [
+          {
+            "node": "Route by Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Action": {
+      "main": [
+        [
+          {
+            "node": "Create Campaign Connector",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Register Deal Connector",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Submit Claim Connector",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Budget Connector",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "List Campaigns Connector",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Unknown Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Campaign Connector": {
+      "main": [
+        [
+          {
+            "node": "Validate Campaign Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Campaign Data": {
+      "main": [
+        [
+          {
+            "node": "Campaign Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Campaign Valid?": {
+      "main": [
+        [
+          {
+            "node": "Slack - New Campaign Created",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email - Campaign Notification to CMs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets - Log Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Campaign Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - New Campaign Created": {
+      "main": [
+        [
+          {
+            "node": "Respond - Campaign Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Campaign Notification to CMs": {
+      "main": [
+        [
+          {
+            "node": "Respond - Campaign Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Log Campaign": {
+      "main": [
+        [
+          {
+            "node": "Respond - Campaign Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Register Deal Connector": {
+      "main": [
+        [
+          {
+            "node": "Validate Promotion Deal Registration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Promotion Deal Registration": {
+      "main": [
+        [
+          {
+            "node": "Deal Registration Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deal Registration Valid?": {
+      "main": [
+        [
+          {
+            "node": "Slack - New Promotion Deal Registered",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets - Log Deal Registration",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email - Deal Registered Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Deal Registration Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - New Promotion Deal Registered": {
+      "main": [
+        [
+          {
+            "node": "Respond - Deal Registered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Log Deal Registration": {
+      "main": [
+        [
+          {
+            "node": "Respond - Deal Registered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Deal Registered Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Respond - Deal Registered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit Claim Connector": {
+      "main": [
+        [
+          {
+            "node": "Validate Claim Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Claim Data": {
+      "main": [
+        [
+          {
+            "node": "Claim Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Valid?": {
+      "main": [
+        [
+          {
+            "node": "Route Claim by Amount",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Claim Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Claim by Amount": {
+      "main": [
+        [
+          {
+            "node": "Auto-Approve Claim",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Manual Approval Required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Approve Claim": {
+      "main": [
+        [
+          {
+            "node": "Slack - Claim Auto-Approved",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email - SPIF Claim Auto-Approved",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets - Log Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Approval Required": {
+      "main": [
+        [
+          {
+            "node": "Slack - Claim Needs Manager Review",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email - Claim Requires Review",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email - SPIF Claim Under Review",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets - Log Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Claim Auto-Approved": {
+      "main": [
+        [
+          {
+            "node": "Respond - Claim Auto-Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - SPIF Claim Auto-Approved": {
+      "main": [
+        [
+          {
+            "node": "Respond - Claim Auto-Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Log Claim": {
+      "main": [
+        [
+          {
+            "node": "Respond - Claim Auto-Approved",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Claim Pending Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Claim Needs Manager Review": {
+      "main": [
+        [
+          {
+            "node": "Respond - Claim Pending Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Claim Requires Review": {
+      "main": [
+        [
+          {
+            "node": "Respond - Claim Pending Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - SPIF Claim Under Review": {
+      "main": [
+        [
+          {
+            "node": "Respond - Claim Pending Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Budget Connector": {
+      "main": [
+        [
+          {
+            "node": "Check Budget Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Budget Logic": {
+      "main": [
+        [
+          {
+            "node": "Budget Warning?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Budget Warning?": {
+      "main": [
+        [
+          {
+            "node": "Slack - Budget Warning",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Budget Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Budget Warning": {
+      "main": [
+        [
+          {
+            "node": "Respond - Budget Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Campaigns Connector": {
+      "main": [
+        [
+          {
+            "node": "List Active Campaigns Stub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Active Campaigns Stub": {
+      "main": [
+        [
+          {
+            "node": "Respond - Active Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

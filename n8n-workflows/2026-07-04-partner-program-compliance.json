@@ -1,0 +1,1003 @@
+{
+  "name": "Partner Program Compliance Monitoring",
+  "nodes": [
+    {
+      "id": "webhook-compliance-inbound",
+      "name": "Webhook - Compliance Check Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "partner-compliance",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "partner-compliance-hook"
+    },
+    {
+      "id": "format-compliance-data",
+      "name": "Format Compliance Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "partnerId",
+              "value": "={{ $json.body.partnerId || $json.body.partner_id || '' }}"
+            },
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName || $json.body.partner_name || '' }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.body.partnerEmail || $json.body.email || '' }}"
+            },
+            {
+              "name": "partnerTier",
+              "value": "={{ $json.body.partnerTier || $json.body.tier || 'Authorized' }}"
+            },
+            {
+              "name": "quarterlyRevenue",
+              "value": "={{ $json.body.quarterlyRevenue || $json.body.revenue || 0 }}"
+            },
+            {
+              "name": "certificationCount",
+              "value": "={{ $json.body.certificationCount || $json.body.certs || 0 }}"
+            },
+            {
+              "name": "trainingHoursCompleted",
+              "value": "={{ $json.body.trainingHoursCompleted || $json.body.training_hours || 0 }}"
+            },
+            {
+              "name": "planOfActionActive",
+              "value": "={{ $json.body.planOfActionActive || $json.body.poa_active || 'false' }}"
+            },
+            {
+              "name": "dealsRegistered",
+              "value": "={{ $json.body.dealsRegistered || $json.body.deals || 0 }}"
+            },
+            {
+              "name": "mdfUtilizationPct",
+              "value": "={{ $json.body.mdfUtilizationPct || $json.body.mdf_pct || 0 }}"
+            },
+            {
+              "name": "partnerTenureMonths",
+              "value": "={{ $json.body.partnerTenureMonths || $json.body.tenure_months || 0 }}"
+            },
+            {
+              "name": "reviewPeriod",
+              "value": "={{ $json.body.reviewPeriod || $json.body.period || 'Q' + (Math.ceil((Date.now()/1000/86400/30.44 + 1)/3) % 4 + 1) + ' ' + new Date().getFullYear() }}"
+            },
+            {
+              "name": "complianceScore",
+              "value": "0"
+            },
+            {
+              "name": "complianceStatus",
+              "value": "Pending"
+            }
+          ]
+        }
+      },
+      "options": {}
+    },
+    {
+      "id": "check-tier-compliance",
+      "name": "IF - Check Tier & Calculate Compliance",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.partnerTier }}",
+              "operation": "equal",
+              "value2": "Platinum"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "calc-platinum-compliance",
+      "name": "Calculate Platinum Compliance",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 150],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "revenueScore",
+              "value": "={{ Math.min(($json.quarterlyRevenue / 200000) * 40, 40) }}"
+            },
+            {
+              "name": "certScore",
+              "value": "={{ Math.min(($json.certificationCount / 2) * 20, 20) }}"
+            },
+            {
+              "name": "trainingScore",
+              "value": "={{ Math.min(($json.trainingHoursCompleted / 10) * 10, 10) }}"
+            },
+            {
+              "name": "poaScore",
+              "value": "={{ $json.planOfActionActive === 'true' || $json.planOfActionActive === true ? 10 : 0 }}"
+            },
+            {
+              "name": "dealScore",
+              "value": "={{ Math.min(($json.dealsRegistered / 15) * 10, 10) }}"
+            },
+            {
+              "name": "mdfScore",
+              "value": "={{ Math.min(($json.mdfUtilizationPct / 100) * 10, 10) }}"
+            },
+            {
+              "name": "complianceScore",
+              "value": "={{ Math.round(($json.revenueScore || 0) + ($json.certScore || 0) + ($json.trainingScore || 0) + ($json.poaScore || 0) + ($json.dealScore || 0) + ($json.mdfScore || 0)) }}"
+            },
+            {
+              "name": "tierRequirements",
+              "value": "{{ 'Platinum: $200K rev, 2 certs, 10h training, POA, 15 deals, 50% MDF utilization' }}"
+            }
+          ]
+        }
+      },
+      "options": {}
+    },
+    {
+      "id": "if-check-gold-vs-authorized",
+      "name": "IF - Check Gold vs Authorized",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 430],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.partnerTier }}",
+              "operation": "equal",
+              "value2": "Gold"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "calc-gold-compliance",
+      "name": "Calculate Gold Compliance",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1050, 350],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "revenueScore",
+              "value": "={{ Math.min(($json.quarterlyRevenue / 50000) * 40, 40) }}"
+            },
+            {
+              "name": "certScore",
+              "value": "={{ Math.min(($json.certificationCount / 1) * 20, 20) }}"
+            },
+            {
+              "name": "trainingScore",
+              "value": "={{ Math.min(($json.trainingHoursCompleted / 5) * 10, 10) }}"
+            },
+            {
+              "name": "poaScore",
+              "value": "={{ $json.planOfActionActive === 'true' || $json.planOfActionActive === true ? 10 : 0 }}"
+            },
+            {
+              "name": "dealScore",
+              "value": "={{ Math.min(($json.dealsRegistered / 5) * 10, 10) }}"
+            },
+            {
+              "name": "mdfScore",
+              "value": "={{ Math.min(($json.mdfUtilizationPct / 100) * 10, 10) }}"
+            },
+            {
+              "name": "complianceScore",
+              "value": "={{ Math.round(($json.revenueScore || 0) + ($json.certScore || 0) + ($json.trainingScore || 0) + ($json.poaScore || 0) + ($json.dealScore || 0) + ($json.mdfScore || 0)) }}"
+            },
+            {
+              "name": "tierRequirements",
+              "value": "{{ 'Gold: $50K rev, 1 cert, 5h training, POA, 5 deals, 50% MDF utilization' }}"
+            }
+          ]
+        }
+      },
+      "options": {}
+    },
+    {
+      "id": "calc-authorized-compliance",
+      "name": "Calculate Authorized Compliance",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [850, 550],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "revenueScore",
+              "value": "={{ Math.min(($json.quarterlyRevenue / 10000) * 30, 30) }}"
+            },
+            {
+              "name": "certScore",
+              "value": "={{ Math.min(($json.certificationCount / 1) * 15, 15) }}"
+            },
+            {
+              "name": "trainingScore",
+              "value": "={{ Math.min(($json.trainingHoursCompleted / 3) * 15, 15) }}"
+            },
+            {
+              "name": "poaScore",
+              "value": "={{ $json.planOfActionActive === 'true' || $json.planOfActionActive === true ? 10 : 0 }}"
+            },
+            {
+              "name": "dealScore",
+              "value": "={{ Math.min(($json.dealsRegistered / 2) * 15, 15) }}"
+            },
+            {
+              "name": "mdfScore",
+              "value": "={{ Math.min(($json.mdfUtilizationPct / 100) * 15, 15) }}"
+            },
+            {
+              "name": "complianceScore",
+              "value": "={{ Math.round(($json.revenueScore || 0) + ($json.certScore || 0) + ($json.trainingScore || 0) + ($json.poaScore || 0) + ($json.dealScore || 0) + ($json.mdfScore || 0)) }}"
+            },
+            {
+              "name": "tierRequirements",
+              "value": "{{ 'Authorized: $10K rev, 1 cert, 3h training, POA, 2 deals, 25% MDF utilization' }}"
+            }
+          ]
+        }
+      },
+      "options": {}
+    },
+    {
+      "id": "set-compliance-status",
+      "name": "Set Compliance Status Label",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1050, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "complianceStatus",
+              "value": "={{ $json.complianceScore >= 80 ? 'Compliant' : ($json.complianceScore >= 50 ? 'At Risk' : 'Non-Compliant') }}"
+            }
+          ]
+        }
+      },
+      "options": {}
+    },
+    {
+      "id": "route-compliance-status",
+      "name": "IF - Route by Compliance Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.complianceStatus }}",
+              "operation": "equal",
+              "value2": "Compliant"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "route-at-risk",
+      "name": "IF - At Risk or Non-Compliant",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 400],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.complianceStatus }}",
+              "operation": "equal",
+              "value2": "At Risk"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "slack-compliant",
+      "name": "Slack - Partner Compliant",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1450, 100],
+      "parameters": {
+        "channel": "C_YOUR_COMPLIANCE_CHANNEL",
+        "text": "=┌─────────────────────────────────────┐\\n✅ *COMPLIANCE PASS: {{ $json.partnerName }}*\\n├─────────────────────────────────────┤\\n📊 Score: *{{ $json.complianceScore }}/100* — {{ $json.complianceStatus }}\\n├─────────────────────────────────────┤\\n🏷️ Tier: {{ $json.partnerTier }}\\n💰 Revenue: ${{ $json.quarterlyRevenue.toLocaleString() }} against {{ $json.tierRequirements }}\\n🎓 Certifications: {{ $json.certificationCount }}\\n📅 Period: {{ $json.reviewPeriod }}\\n└─────────────────────────────────────┘",
+        "jsonParameters": false,
+        "sendAsUser": "",
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "log-compliant-to-sheets",
+      "name": "Log Compliant to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1650, 100],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "ComplianceLog",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "startRow": "={{ $json.partnerId }}",
+            "columns": {
+              "string": [
+                {
+                  "name": "partnerId",
+                  "value": "={{ $json.partnerId }}"
+                },
+                {
+                  "name": "partnerName",
+                  "value": "={{ $json.partnerName }}"
+                },
+                {
+                  "name": "tier",
+                  "value": "={{ $json.partnerTier }}"
+                },
+                {
+                  "name": "period",
+                  "value": "={{ $json.reviewPeriod }}"
+                },
+                {
+                  "name": "complianceScore",
+                  "value": "={{ $json.complianceScore }}"
+                },
+                {
+                  "name": "complianceStatus",
+                  "value": "={{ $json.complianceStatus }}"
+                },
+                {
+                  "name": "revenueScore",
+                  "value": "={{ $json.revenueScore }}"
+                },
+                {
+                  "name": "certScore",
+                  "value": "={{ $json.certScore }}"
+                },
+                {
+                  "name": "trainingScore",
+                  "value": "={{ $json.trainingScore }}"
+                },
+                {
+                  "name": "poaScore",
+                  "value": "={{ $json.poaScore }}"
+                },
+                {
+                  "name": "dealScore",
+                  "value": "={{ $json.dealScore }}"
+                },
+                {
+                  "name": "mdfScore",
+                  "value": "={{ $json.mdfScore }}"
+                },
+                {
+                  "name": "reviewedAt",
+                  "value": "={{ new Date().toISOString() }}"
+                }
+              ]
+            }
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "id": "return-compliant",
+      "name": "Return Response (Compliant)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 100],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+    {
+      "id": "slack-at-risk",
+      "name": "Slack - At Risk Partner",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1650, 300],
+      "parameters": {
+        "channel": "C_YOUR_COMPLIANCE_CHANNEL",
+        "text": "=┌─────────────────────────────────────┐\\n⚠️ *COMPLIANCE WARNING: {{ $json.partnerName }}*\\n├─────────────────────────────────────┤\\n📊 Score: *{{ $json.complianceScore }}/100* — {{ $json.complianceStatus }}\\n├─────────────────────────────────────┤\\n🏷️ Tier: {{ $json.partnerTier }}\\n💰 Revenue: ${{ $json.quarterlyRevenue.toLocaleString() }} (target: {{ $json.tierRequirements }})\\n🎓 Certs: {{ $json.certificationCount }}\\n📝 POA Active: {{ $json.planOfActionActive }}\\n💼 Deals: {{ $json.dealsRegistered }}\\n📅 Period: {{ $json.reviewPeriod }}\\n├─────────────────────────────────────┤\\n📌 *Action Needed:* Contact partner within 5 business days.\\n└─────────────────────────────────────┘",
+        "jsonParameters": false,
+        "sendAsUser": "",
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "email-at-risk-partner",
+      "name": "Email - At Risk Notice to Partner",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1650, 450],
+      "parameters": {
+        "fromEmail": "channel@example-channel.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=Action Required: Partner Program Compliance Status — {{ $json.partnerName }}",
+        "text": "=Dear {{ $json.partnerName }} team,\\n\\nThis is a courtesy notice regarding your {{ $json.partnerTier }} tier compliance status for {{ $json.reviewPeriod }}.\\n\\nYour overall compliance score is {{ $json.complianceScore }}/100, which places you in \"At Risk\" status.\\n\\nBreakdown:\\n- Revenue: {{ $json.revenueScore }}/40 (Actual: ${{ $json.quarterlyRevenue.toLocaleString() }})\\n- Certifications: {{ $json.certScore }}/20 (Count: {{ $json.certificationCount }})\\n- Training: {{ $json.trainingScore }}/10 (Hours: {{ $json.trainingHoursCompleted }})\\n- Plan of Action: {{ $json.poaScore }}/10 (Active: {{ $json.planOfActionActive }})\\n- Deals Registered: {{ $json.dealScore }}/10 (Count: {{ $json.dealsRegistered }})\\n- MDF Utilization: {{ $json.mdfScore }}/10 (Rate: {{ $json.mdfUtilizationPct }}%)\\n\\nYour channel manager will be in touch to discuss a remediation plan. Please ensure the following within the next 30 days:\\n1. Review and update your Plan of Action if needed\\n2. Schedule any outstanding training/certifications\\n3. Increase deal registration activity\\n\\nIf you have questions, please contact your channel manager.\\n\\nBest,\\nChannel Operations Team\\nchannel@example-channel.com",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "log-at-risk-to-sheets",
+      "name": "Log At Risk to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1850, 300],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "ComplianceLog",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "startRow": "={{ $json.partnerId }}",
+            "columns": {
+              "string": [
+                {
+                  "name": "partnerId",
+                  "value": "={{ $json.partnerId }}"
+                },
+                {
+                  "name": "partnerName",
+                  "value": "={{ $json.partnerName }}"
+                },
+                {
+                  "name": "tier",
+                  "value": "={{ $json.partnerTier }}"
+                },
+                {
+                  "name": "period",
+                  "value": "={{ $json.reviewPeriod }}"
+                },
+                {
+                  "name": "complianceScore",
+                  "value": "={{ $json.complianceScore }}"
+                },
+                {
+                  "name": "complianceStatus",
+                  "value": "={{ $json.complianceStatus }}"
+                },
+                {
+                  "name": "revenueScore",
+                  "value": "={{ $json.revenueScore }}"
+                },
+                {
+                  "name": "certScore",
+                  "value": "={{ $json.certScore }}"
+                },
+                {
+                  "name": "trainingScore",
+                  "value": "={{ $json.trainingScore }}"
+                },
+                {
+                  "name": "poaScore",
+                  "value": "={{ $json.poaScore }}"
+                },
+                {
+                  "name": "dealScore",
+                  "value": "={{ $json.dealScore }}"
+                },
+                {
+                  "name": "mdfScore",
+                  "value": "={{ $json.mdfScore }}"
+                },
+                {
+                  "name": "notificationSent",
+                  "value": "At Risk - Partner Notified"
+                },
+                {
+                  "name": "reviewedAt",
+                  "value": "={{ new Date().toISOString() }}"
+                }
+              ]
+            }
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "id": "return-at-risk",
+      "name": "Return Response (At Risk)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+    {
+      "id": "slack-non-compliant",
+      "name": "Slack - Non-Compliant Partner",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1650, 600],
+      "parameters": {
+        "channel": "C_YOUR_COMPLIANCE_CHANNEL",
+        "text": "=┌─────────────────────────────────────┐\\n🚨 *NON-COMPLIANT: {{ $json.partnerName }}*\\n├─────────────────────────────────────┤\\n📊 Score: *{{ $json.complianceScore }}/100* — {{ $json.complianceStatus }}\\n├─────────────────────────────────────┤\\n🏷️ Tier: {{ $json.partnerTier }}\\n💰 Revenue: ${{ $json.quarterlyRevenue.toLocaleString() }} (target: {{ $json.tierRequirements }})\\n🎓 Certs: {{ $json.certificationCount }}\\n📝 POA Active: {{ $json.planOfActionActive }}\\n💼 Deals: {{ $json.dealsRegistered }}\\n📅 Period: {{ $json.reviewPeriod }}\\n├─────────────────────────────────────┤\\n🚩 *ESCALATION REQUIRED:* Notify Channel Director.\\n⏳ Partner has 30 days to remediate or face tier downgrade.\\n└─────────────────────────────────────┘",
+        "jsonParameters": false,
+        "sendAsUser": "",
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "email-non-compliant-partner",
+      "name": "Email - Non-Compliance Notice to Partner",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1650, 750],
+      "parameters": {
+        "fromEmail": "channel@example-channel.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=URGENT: Partner Program Compliance Review — {{ $json.partnerName }}",
+        "text": "=Dear {{ $json.partnerName }} team,\\n\\nThis is an official notice regarding your {{ $json.partnerTier }} tier compliance status for {{ $json.reviewPeriod }}.\\n\\nYour compliance score is {{ $json.complianceScore }}/100, which is below the minimum threshold for your tier.\\n\\nPer our Partner Program Agreement, you have 30 days from receipt of this notice to remediate the following:\\n\\nBreakdown:\\n- Revenue: {{ $json.revenueScore }}/40 (Actual: ${{ $json.quarterlyRevenue.toLocaleString() }})\\n- Certifications: {{ $json.certScore }}/20 (Count: {{ $json.certificationCount }})\\n- Training: {{ $json.trainingScore }}/10 (Hours: {{ $json.trainingHoursCompleted }})\\n- Plan of Action: {{ $json.poaScore }}/10 (Active: {{ $json.planOfActionActive }})\\n- Deals Registered: {{ $json.dealScore }}/10 (Count: {{ $json.dealsRegistered }})\\n- MDF Utilization: {{ $json.mdfScore }}/10 (Rate: {{ $json.mdfUtilizationPct }}%)\\n\\nRequired actions within 30 days:\\n1. Submit an updated Plan of Action\\n2. Complete minimum required training hours\\n3. Meet minimum revenue/deal registration targets\\n4. Schedule required certification exams\\n\\nFailure to remediate will result in tier downgrade review.\\n\\nIf you have questions, please contact your channel manager immediately.\\n\\nBest,\\nChannel Operations Team\\nchannel@example-channel.com",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "email-escalate-director",
+      "name": "Email - Escalate to Channel Director",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1850, 600],
+      "parameters": {
+        "fromEmail": "channel@example-channel.com",
+        "toEmail": "channel-director@example-channel.com",
+        "subject": "=ESCALATION: Partner Non-Compliance — {{ $json.partnerName }} (Score: {{ $json.complianceScore }}/100)",
+        "text": "=Hi Channel Director,\\n\\nThis is an automated escalation notice. The following partner has been flagged as Non-Compliant:\\n\\nPartner: {{ $json.partnerName }} ({{ $json.partnerId }})\\nTier: {{ $json.partnerTier }}\\nPeriod: {{ $json.reviewPeriod }}\\nCompliance Score: {{ $json.complianceScore }}/100\\n\\nKey metrics:\\n- Revenue: ${{ $json.quarterlyRevenue.toLocaleString() }}\\n- Certifications: {{ $json.certificationCount }}\\n- Training Hours: {{ $json.trainingHoursCompleted }}\\n- Plan of Action: {{ $json.planOfActionActive }}\\n- Deals Registered: {{ $json.dealsRegistered }}\\n- MDF Utilization: {{ $json.mdfUtilizationPct }}%\\n\\nThe partner has been notified and has 30 days to remediate. A compliance review meeting is recommended.\\n\\nBest,\\nChannel Operations (Automated)",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "schedule-review-reminder",
+      "name": "Schedule Remediation Follow-Up",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [1850, 750],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 43200
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "log-non-compliant-to-sheets",
+      "name": "Log Non-Compliant to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2050, 600],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "ComplianceLog",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "startRow": "={{ $json.partnerId }}",
+            "columns": {
+              "string": [
+                {
+                  "name": "partnerId",
+                  "value": "={{ $json.partnerId }}"
+                },
+                {
+                  "name": "partnerName",
+                  "value": "={{ $json.partnerName }}"
+                },
+                {
+                  "name": "tier",
+                  "value": "={{ $json.partnerTier }}"
+                },
+                {
+                  "name": "period",
+                  "value": "={{ $json.reviewPeriod }}"
+                },
+                {
+                  "name": "complianceScore",
+                  "value": "={{ $json.complianceScore }}"
+                },
+                {
+                  "name": "complianceStatus",
+                  "value": "={{ $json.complianceStatus }}"
+                },
+                {
+                  "name": "revenueScore",
+                  "value": "={{ $json.revenueScore }}"
+                },
+                {
+                  "name": "certScore",
+                  "value": "={{ $json.certScore }}"
+                },
+                {
+                  "name": "trainingScore",
+                  "value": "={{ $json.trainingScore }}"
+                },
+                {
+                  "name": "poaScore",
+                  "value": "={{ $json.poaScore }}"
+                },
+                {
+                  "name": "dealScore",
+                  "value": "={{ $json.dealScore }}"
+                },
+                {
+                  "name": "mdfScore",
+                  "value": "={{ $json.mdfScore }}"
+                },
+                {
+                  "name": "notificationSent",
+                  "value": "Non-Compliant - Partner & Director Notified"
+                },
+                {
+                  "name": "remediationDeadline",
+                  "value": "={{ new Date(Date.now() + 30*24*60*60*1000).toISOString() }}"
+                },
+                {
+                  "name": "reviewedAt",
+                  "value": "={{ new Date().toISOString() }}"
+                }
+              ]
+            }
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "id": "return-non-compliant",
+      "name": "Return Response (Non-Compliant)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2250, 600],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Compliance Check Inbound": {
+      "main": [
+        [
+          {
+            "node": "Format Compliance Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Compliance Data": {
+      "main": [
+        [
+          {
+            "node": "IF - Check Tier & Calculate Compliance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Check Tier & Calculate Compliance": {
+      "main": [
+        [
+          {
+            "node": "Calculate Platinum Compliance",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - Check Gold vs Authorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Platinum Compliance": {
+      "main": [
+        [
+          {
+            "node": "Set Compliance Status Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Gold Compliance": {
+      "main": [
+        [
+          {
+            "node": "Set Compliance Status Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Check Gold vs Authorized": {
+      "main": [
+        [
+          {
+            "node": "Calculate Gold Compliance",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Calculate Authorized Compliance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Authorized Compliance": {
+      "main": [
+        [
+          {
+            "node": "Set Compliance Status Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Compliance Status Label": {
+      "main": [
+        [
+          {
+            "node": "IF - Route by Compliance Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Route by Compliance Status": {
+      "main": [
+        [
+          {
+            "node": "Slack - Partner Compliant",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - At Risk or Non-Compliant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - At Risk or Non-Compliant": {
+      "main": [
+        [
+          {
+            "node": "Slack - At Risk Partner",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack - Non-Compliant Partner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Partner Compliant": {
+      "main": [
+        [
+          {
+            "node": "Log Compliant to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Compliant to Sheets": {
+      "main": [
+        [
+          {
+            "node": "Return Response (Compliant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - At Risk Partner": {
+      "main": [
+        [
+          {
+            "node": "Email - At Risk Notice to Partner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - At Risk Notice to Partner": {
+      "main": [
+        [
+          {
+            "node": "Log At Risk to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log At Risk to Sheets": {
+      "main": [
+        [
+          {
+            "node": "Return Response (At Risk)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Non-Compliant Partner": {
+      "main": [
+        [
+          {
+            "node": "Email - Non-Compliance Notice to Partner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Non-Compliance Notice to Partner": {
+      "main": [
+        [
+          {
+            "node": "Email - Escalate to Channel Director",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Escalate to Channel Director": {
+      "main": [
+        [
+          {
+            "node": "Log Non-Compliant to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Non-Compliant to Sheets": {
+      "main": [
+        [
+          {
+            "node": "Return Response (Non-Compliant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Denver",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "tags": [
+    {
+      "name": "channel"
+    },
+    {
+      "name": "compliance"
+    },
+    {
+      "name": "monitoring"
+    },
+    {
+      "name": "governance"
+    }
+  ]
+}

@@ -1,0 +1,1099 @@
+{
+  "name": "Partner Plan of Action (POA) Lifecycle Management",
+  "nodes": [
+    {
+      "id": "webhook-poa-inbound",
+      "name": "Webhook - POA Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "partner-poa",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstInputJson"
+      },
+      "webhookId": "partner-poa-hook"
+    },
+    {
+      "id": "format-poa-data",
+      "name": "Format POA Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "action",
+              "value": "={{ $json.body.action || $json.action || 'submit' }}"
+            },
+            {
+              "name": "partnerId",
+              "value": "={{ $json.body.partnerId || $json.body.partner_id || $json.partnerId || '' }}"
+            },
+            {
+              "name": "partnerName",
+              "value": "={{ $json.body.partnerName || $json.body.partner_name || $json.partnerName || '' }}"
+            },
+            {
+              "name": "partnerEmail",
+              "value": "={{ $json.body.partnerEmail || $json.body.partner_email || $json.partnerEmail || '' }}"
+            },
+            {
+              "name": "partnerTier",
+              "value": "={{ $json.body.partnerTier || $json.body.tier || $json.partnerTier || 'Authorized' }}"
+            },
+            {
+              "name": "channelManager",
+              "value": "={{ $json.body.channelManager || $json.body.cm_name || $json.channelManager || '' }}"
+            },
+            {
+              "name": "channelManagerEmail",
+              "value": "={{ $json.body.channelManagerEmail || $json.body.cm_email || $json.channelManagerEmail || '' }}"
+            },
+            {
+              "name": "quarter",
+              "value": "={{ $json.body.quarter || $json.quarter || 'Q' + Math.ceil((new Date().getMonth() + 1) / 3) + ' ' + new Date().getFullYear() }}"
+            },
+            {
+              "name": "poaGoals",
+              "value": "={{ $json.body.poaGoals || $json.body.goals || $json.poaGoals || '' }}"
+            },
+            {
+              "name": "poaKeyInitiatives",
+              "value": "={{ $json.body.poaKeyInitiatives || $json.body.initiatives || $json.poaKeyInitiatives || '' }}"
+            },
+            {
+              "name": "poaStatus",
+              "value": "={{ $json.body.poaStatus || $json.status || $json.poaStatus || 'draft' }}"
+            },
+            {
+              "name": "reviewDecision",
+              "value": "={{ $json.body.reviewDecision || $json.body.decision || $json.reviewDecision || '' }}"
+            },
+            {
+              "name": "reviewComments",
+              "value": "={{ $json.body.reviewComments || $json.body.comments || $json.reviewComments || '' }}"
+            },
+            {
+              "name": "poaId",
+              "value": "={{ $json.body.poaId || $json.body.poa_id || $json.poaId || 'POA-' + Date.now() }}"
+            },
+            {
+              "name": "submittedAt",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "revenueTarget",
+              "value": "={{ $json.body.revenueTarget || $json.body.revenue_target || $json.revenueTarget || 0 }}"
+            },
+            {
+              "name": "dealsTarget",
+              "value": "={{ $json.body.dealsTarget || $json.body.deals_target || $json.dealsTarget || 0 }}"
+            },
+            {
+              "name": "mdfRequested",
+              "value": "={{ $json.body.mdfRequested || $json.body.mdf_requested || $json.mdfRequested || 0 }}"
+            },
+            {
+              "name": "newDealsClosed",
+              "value": "={{ $json.body.newDealsClosed || $json.body.deals_closed || $json.newDealsClosed || 0 }}"
+            },
+            {
+              "name": "revenueAttained",
+              "value": "={{ $json.body.revenueAttained || $json.body.revenue_attained || $json.revenueAttained || 0 }}"
+            },
+            {
+              "name": "mdfUtilized",
+              "value": "={{ $json.body.mdfUtilized || $json.body.mdf_utilized || $json.mdfUtilized || 0 }}"
+            },
+            {
+              "name": "trainingsCompleted",
+              "value": "={{ $json.body.trainingsCompleted || $json.body.trainings || $json.trainingsCompleted || 0 }}"
+            },
+            {
+              "name": "scoreOverride",
+              "value": "={{ $json.body.scoreOverride || $json.body.score || $json.scoreOverride || 0 }}"
+            }
+          ]
+        }
+      },
+      "options": {}
+    },
+    {
+      "id": "if-identify-action",
+      "name": "IF - Identify Action Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "submit"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "if-action-review-score",
+      "name": "IF - Review or Score or Overdue",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 500],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "review"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "if-action-score-overdue",
+      "name": "IF - Score or Overdue",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 700],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "score"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "if-poa-completeness",
+      "name": "IF - POA Completeness Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 100],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.partnerName && $json.partnerEmail && $json.partnerTier && $json.poaGoals && $json.revenueTarget > 0 ? 'complete' : 'incomplete' }}",
+              "operation": "equal",
+              "value2": "complete"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "slack-cm-new-submission",
+      "name": "Slack - New POA to CM",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1050, 100],
+      "parameters": {
+        "channel": "C_YOUR_POA_CHANNEL",
+        "text": "=┌────────────────────────────────────────┐\\n📋 *NEW POA SUBMISSION: {{ $json.partnerName }}*\\n├────────────────────────────────────────┤\\n📄 POA ID: {{ $json.poaId }}\\n🏷️ Tier: {{ $json.partnerTier }}\\n📅 Quarter: {{ $json.quarter }}\\n🎯 Revenue Target: ${{ Number($json.revenueTarget).toLocaleString() }}\\n💼 Deals Target: {{ $json.dealsTarget }}\\n💰 MDF Requested: ${{ Number($json.mdfRequested).toLocaleString() }}\\n├────────────────────────────────────────┤\\n🎯 Goals: {{ $json.poaGoals.substring(0, 200) }}\\n├────────────────────────────────────────┤\\n📌 *Action Needed:* Review within 5 business days.\\n🔗 Use action=\"review\" with decision=\"approved\" / \"needs_revision\" / \"rejected\"\\n└────────────────────────────────────────┘",
+        "jsonParameters": false,
+        "sendAsUser": "",
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "email-cm-new-submission",
+      "name": "Email CM - POA Requires Review",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1050, 250],
+      "parameters": {
+        "fromEmail": "channel@example-channel.com",
+        "toEmail": "={{ $json.channelManagerEmail || 'channel-ops@example-channel.com' }}",
+        "subject": "=POA Requires Review — {{ $json.partnerName }} ({{ $json.quarter }})",
+        "text": "=Hi {{ $json.channelManager || 'Channel Manager' }},\\n\\nA new Plan of Action has been submitted by {{ $json.partnerName }} for {{ $json.quarter }} and requires your review.\\n\\n---\\nPOA ID: {{ $json.poaId }}\\nPartner: {{ $json.partnerName }} ({{ $json.partnerTier }})\\nQuarter: {{ $json.quarter }}\\nRevenue Target: ${{ Number($json.revenueTarget).toLocaleString() }}\\nDeals Target: {{ $json.dealsTarget }}\\nMDF Requested: ${{ Number($json.mdfRequested).toLocaleString() }}\\n\\nGoals:\\n{{ $json.poaGoals }}\\n\\nKey Initiatives:\\n{{ $json.poaKeyInitiatives || 'Not specified' }}\\n\\n---\\nTo respond, POST to the webhook with:\\n{\\n  \"action\": \"review\",\\n  \"partnerId\": \"{{ $json.partnerId }}\",\\n  \"poaId\": \"{{ $json.poaId }}\",\\n  \"reviewDecision\": \"approved|needs_revision|rejected\",\\n  \"reviewComments\": \"Your feedback here\"\\n}\\n\\nPlease respond within 5 business days.\\n\\nBest,\\nChannel Operations\\nchannel@example-channel.com",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "return-submitted",
+      "name": "Return - POA Submitted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 100],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  message: 'POA submitted successfully. Channel manager notified for review.',\n  poaId: $json.poaId,\n  partnerName: $json.partnerName,\n  quarter: $json.quarter,\n  status: 'pending_review',\n  nextSteps: 'Awaiting channel manager review (typical: 5 business days)',\n  submittedAt: $json.submittedAt\n} }}"
+      }
+    },
+    {
+      "id": "return-incomplete",
+      "name": "Return - POA Incomplete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 50],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: false,\n  message: 'POA submission incomplete. Required fields: partnerName, partnerEmail, partnerTier, poaGoals, revenueTarget (>0).',\n  poaId: $json.poaId,\n  missingFields: [\n    $json.partnerName ? null : 'partnerName',\n    $json.partnerEmail ? null : 'partnerEmail',\n    $json.partnerTier ? null : 'partnerTier',\n    $json.poaGoals ? null : 'poaGoals',\n    Number($json.revenueTarget) > 0 ? null : 'revenueTarget'\n  ].filter(function(f) { return f !== null; }),\n  status: 'incomplete'\n} }}"
+      }
+    },
+    {
+      "id": "if-review-decision",
+      "name": "IF - Review Decision",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 500],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.reviewDecision }}",
+              "operation": "equal",
+              "value2": "approved"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "if-revision-vs-rejected",
+      "name": "IF - Revision or Rejected",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 650],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.reviewDecision }}",
+              "operation": "equal",
+              "value2": "needs_revision"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "email-partner-approved",
+      "name": "Email Partner - POA Approved",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1250, 400],
+      "parameters": {
+        "fromEmail": "channel@example-channel.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=✅ POA Approved — {{ $json.partnerName }} ({{ $json.quarter }})",
+        "text": "=Dear {{ $json.partnerName }} team,\\n\\nGreat news! Your Plan of Action for {{ $json.quarter }} has been **approved**.\\n\\n---\\nPOA ID: {{ $json.poaId }}\\nQuarter: {{ $json.quarter }}\\nRevenue Target: ${{ Number($json.revenueTarget).toLocaleString() }}\\nDeals Target: {{ $json.dealsTarget }}\\nMDF Requested: ${{ Number($json.mdfRequested).toLocaleString() }}\\n\\n{{ $json.reviewComments ? 'Reviewer Comments:\\n' + $json.reviewComments + '\\n' : '' }}\\n---\\n\\n**Next Steps:**\\n1. Execute your plan for the quarter\\n2. Track progress against targets\\n3. MDF claims can be submitted for approved activities\\n4. End-of-quarter scoring will evaluate attainment\\n\\nIf you have questions, contact your channel manager.\\n\\nBest,\\nChannel Operations Team\\nchannel@example-channel.com",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "return-approved",
+      "name": "Return - POA Approved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  message: 'POA approved. Partner notified.',\n  poaId: $json.poaId,\n  partnerName: $json.partnerName,\n  quarter: $json.quarter,\n  status: 'approved',\n  reviewDecision: 'approved',\n  reviewedAt: new Date().toISOString()\n} }}"
+      }
+    },
+    {
+      "id": "email-partner-revision",
+      "name": "Email Partner - POA Needs Revision",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1450, 600],
+      "parameters": {
+        "fromEmail": "channel@example-channel.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=🔄 POA Needs Revision — {{ $json.partnerName }} ({{ $json.quarter }})",
+        "text": "=Dear {{ $json.partnerName }} team,\\n\\nYour Plan of Action for {{ $json.quarter }} has been reviewed and **needs revision** before it can be approved.\\n\\n---\\nPOA ID: {{ $json.poaId }}\\nQuarter: {{ $json.quarter }}\\n\\n**Feedback from Channel Manager:**\\n{{ $json.reviewComments || 'Please revise your plan and resubmit.' }}\\n---\\n\\n**How to Resubmit:**\\nRevise your POA and POST to the webhook with:\\n- action: \"submit\"\\n- poaId: \"{{ $json.poaId }}\"\\n- Updated goals, targets, and initiatives\\n\\nPlease resubmit within 10 business days.\\n\\nBest,\\nChannel Operations Team\\nchannel@example-channel.com",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "return-revision",
+      "name": "Return - POA Needs Revision",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 600],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  message: 'POA revision requested. Partner notified with feedback.',\n  poaId: $json.poaId,\n  partnerName: $json.partnerName,\n  status: 'needs_revision',\n  reviewDecision: 'needs_revision',\n  reviewedAt: new Date().toISOString()\n} }}"
+      }
+    },
+    {
+      "id": "email-partner-rejected",
+      "name": "Email Partner - POA Rejected",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1450, 750],
+      "parameters": {
+        "fromEmail": "channel@example-channel.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=❌ POA Not Approved — {{ $json.partnerName }} ({{ $json.quarter }})",
+        "text": "=Dear {{ $json.partnerName }} team,\\n\\nAfter review, your Plan of Action for {{ $json.quarter }} has **not been approved** at this time.\\n\\n---\\nPOA ID: {{ $json.poaId }}\\nQuarter: {{ $json.quarter }}\\n\\n**Reason:**\\n{{ $json.reviewComments || 'Please contact your channel manager for more information.' }}\\n---\\n\\n**Next Steps:**\\nPlease schedule a call with your channel manager to discuss an updated plan. You may submit a new POA at any time with revised targets and initiatives.\\n\\nBest,\\nChannel Operations Team\\nchannel@example-channel.com",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "return-rejected",
+      "name": "Return - POA Rejected",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 750],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  message: 'POA reviewed and not approved. Partner notified with feedback.',\n  poaId: $json.poaId,\n  partnerName: $json.partnerName,\n  status: 'rejected',\n  reviewDecision: 'rejected',\n  reviewedAt: new Date().toISOString()\n} }}"
+      }
+    },
+    {
+      "id": "set-score-calculation",
+      "name": "Set - Calculate POA Score",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1250, 700],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "revenueAttainmentPct",
+              "value": "={{ Number($json.revenueTarget) > 0 ? Math.min(Math.round(Number($json.revenueAttained) / Number($json.revenueTarget) * 100), 100) : 0 }}"
+            },
+            {
+              "name": "dealsAttainmentPct",
+              "value": "={{ Number($json.dealsTarget) > 0 ? Math.min(Math.round(Number($json.newDealsClosed) / Number($json.dealsTarget) * 100), 100) : 100 }}"
+            },
+            {
+              "name": "mdfUtilizationPct",
+              "value": "={{ Number($json.mdfRequested) > 0 ? Math.min(Math.round(Number($json.mdfUtilized) / Number($json.mdfRequested) * 100), 100) : 100 }}"
+            },
+            {
+              "name": "revenueScore",
+              "value": "={{ Math.round(($json.revenueAttainmentPct || 0) * 0.35) }}"
+            },
+            {
+              "name": "dealsScore",
+              "value": "={{ Math.round(($json.dealsAttainmentPct || 0) * 0.25) }}"
+            },
+            {
+              "name": "mdfScore",
+              "value": "={{ Math.round(($json.mdfUtilizationPct || 0) * 0.10) }}"
+            },
+            {
+              "name": "trainingScore",
+              "value": "={{ Math.min(Number($json.trainingsCompleted) * 5, 15) }}"
+            },
+            {
+              "name": "initiativeScore",
+              "value": "={{ $json.poaKeyInitiatives && $json.poaKeyInitiatives.length > 10 ? 15 : 0 }}"
+            },
+            {
+              "name": "poaScore",
+              "value": "={{ Number($json.scoreOverride) > 0 ? Number($json.scoreOverride) : Math.min(Math.round(($json.revenueScore || 0) + ($json.dealsScore || 0) + ($json.mdfScore || 0) + ($json.trainingScore || 0) + ($json.initiativeScore || 0)), 100) }}"
+            },
+            {
+              "name": "revenueAttainmentLabel",
+              "value": "={{ $json.revenueAttainmentPct >= 100 ? 'Exceeded' : ($json.revenueAttainmentPct >= 80 ? 'On Track' : ($json.revenueAttainmentPct >= 50 ? 'Behind' : 'At Risk')) }}"
+            },
+            {
+              "name": "dealsAttainmentLabel",
+              "value": "={{ $json.dealsAttainmentPct >= 100 ? 'Exceeded' : ($json.dealsAttainmentPct >= 80 ? 'On Track' : ($json.dealsAttainmentPct >= 50 ? 'Behind' : 'At Risk')) }}"
+            }
+          ]
+        }
+      },
+      "options": {}
+    },
+    {
+      "id": "if-score-threshold",
+      "name": "IF - Score Threshold",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 700],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.poaScore }}",
+              "operation": "largerEqual",
+              "value2": 70
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "if-score-at-risk-vs-failed",
+      "name": "IF - At Risk or Failed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1650, 850],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.poaScore }}",
+              "operation": "largerEqual",
+              "value2": 40
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "slack-poa-passed",
+      "name": "Slack - POA Passed",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1650, 500],
+      "parameters": {
+        "channel": "C_YOUR_POA_CHANNEL",
+        "text": "=┌────────────────────────────────────────┐\\n✅ *POA PASSED: {{ $json.partnerName }}*\\n├────────────────────────────────────────┤\\n📊 Score: *{{ $json.poaScore }}/100* ✅\\n📅 Quarter: {{ $json.quarter }}\\n├────────────────────────────────────────┤\\n💰 Revenue: ${{ Number($json.revenueAttained).toLocaleString() }} / ${{ Number($json.revenueTarget).toLocaleString() }} ({{ $json.revenueAttainmentPct }}%)\\n💼 Deals: {{ $json.newDealsClosed }} / {{ $json.dealsTarget }} ({{ $json.dealsAttainmentPct }}%)\\n🎓 Training: {{ $json.trainingsCompleted }} completed\\n├────────────────────────────────────────┤\\n📌 *Status:* Full compliance — no action needed.\\n└────────────────────────────────────────┘",
+        "jsonParameters": false,
+        "sendAsUser": "",
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "email-partner-passed",
+      "name": "Email Partner - POA Passed",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1650, 650],
+      "parameters": {
+        "fromEmail": "channel@example-channel.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=✅ POA Achievement — {{ $json.partnerName }} ({{ $json.quarter }})",
+        "text": "=Dear {{ $json.partnerName }} team,\\n\\nCongratulations! Your Plan of Action for {{ $json.quarter }} has achieved a score of **{{ $json.poaScore }}/100**, meeting the performance threshold.\\n\\n---\\nQuarterly POA Scorecard\\n---\\nPOA ID: {{ $json.poaId }}\\nQuarter: {{ $json.quarter }}\\n\\nRevenue Attainment: {{ $json.revenueAttainmentPct }}% (${{ Number($json.revenueAttained).toLocaleString() }} of ${{ Number($json.revenueTarget).toLocaleString() }})\\nDeals Attainment: {{ $json.dealsAttainmentPct }}% ({{ $json.newDealsClosed }} of {{ $json.dealsTarget }})\\nMDF Utilization: {{ $json.mdfUtilizationPct }}%\\nTraining Completed: {{ $json.trainingsCompleted }}\\n\\n**Overall POA Score: {{ $json.poaScore }}/100 — {{ $json.poaScore >= 70 ? 'PASSED ✅' : ($json.poaScore >= 40 ? 'IN PROGRESS ⚠️' : 'AT RISK 🚨') }}**\\n---\\n\\nThis performance contributes to your tier standing. Continue the great work!\\n\\nFor next quarter's POA, submit a new plan before the quarter end.\\n\\nBest,\\nChannel Operations Team\\nchannel@example-channel.com",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "return-score-passed",
+      "name": "Return - POA Score Passed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 500],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  message: 'POA score recorded: PASSED',\n  poaId: $json.poaId,\n  partnerName: $json.partnerName,\n  quarter: $json.quarter,\n  poaScore: $json.poaScore,\n  poaStatus: 'passed',\n  revenueAttainmentPct: $json.revenueAttainmentPct,\n  dealsAttainmentPct: $json.dealsAttainmentPct,\n  scoredAt: new Date().toISOString()\n} }}"
+      }
+    },
+    {
+      "id": "slack-poa-at-risk",
+      "name": "Slack - POA At Risk",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1850, 700],
+      "parameters": {
+        "channel": "C_YOUR_POA_CHANNEL",
+        "text": "=┌────────────────────────────────────────┐\\n⚠️ *POA IN PROGRESS: {{ $json.partnerName }}*\\n├────────────────────────────────────────┤\\n📊 Score: *{{ $json.poaScore }}/100* ⚠️\\n📅 Quarter: {{ $json.quarter }}\\n├────────────────────────────────────────┤\\n💰 Revenue: ${{ Number($json.revenueAttained).toLocaleString() }} / ${{ Number($json.revenueTarget).toLocaleString() }} ({{ $json.revenueAttainmentPct }}%)\\n💼 Deals: {{ $json.newDealsClosed }} / {{ $json.dealsTarget }} ({{ $json.dealsAttainmentPct }}%)\\n🎓 Training: {{ $json.trainingsCompleted }}\\n├────────────────────────────────────────┤\\n📌 *Action:* CM should schedule QBR check-in with partner.\\n└────────────────────────────────────────┘",
+        "jsonParameters": false,
+        "sendAsUser": "",
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "email-partner-at-risk",
+      "name": "Email Partner - POA In Progress",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1850, 850],
+      "parameters": {
+        "fromEmail": "channel@example-channel.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=⚠️ POA Progress Update — {{ $json.partnerName }} ({{ $json.quarter }})",
+        "text": "=Dear {{ $json.partnerName }} team,\\n\\nThis is a progress update on your Plan of Action for {{ $json.quarter }}.\\n\\nYour current POA score is **{{ $json.poaScore }}/100**, which is below the 70-point threshold.\\n\\n---\\nQuarterly POA Scorecard\\n---\\nRevenue Attainment: {{ $json.revenueAttainmentPct }}% (${{ Number($json.revenueAttained).toLocaleString() }} of ${{ Number($json.revenueTarget).toLocaleString() }})\\nDeals Attainment: {{ $json.dealsAttainmentPct }}% ({{ $json.newDealsClosed }} of {{ $json.dealsTarget }})\\nMDF Utilization: {{ $json.mdfUtilizationPct }}%\\nTraining Completed: {{ $json.trainingsCompleted }}\\n\\n**Overall POA Score: {{ $json.poaScore }}/100**\\n---\\n\\n**Recommended Actions:**\\n1. Schedule a check-in with your channel manager\\n2. Review targets vs. actuals and adjust strategy\\n3. Consider additional deal registrations or MDF-backed campaigns\\n4. Complete outstanding training\\n\\nYour channel manager will be in touch to discuss a performance improvement plan if scores do not improve.\\n\\nBest,\\nChannel Operations Team\\nchannel@example-channel.com",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "return-score-at-risk",
+      "name": "Return - POA Score At Risk",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 700],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  message: 'POA score recorded: IN PROGRESS — below threshold. Partner and CM notified.',\n  poaId: $json.poaId,\n  partnerName: $json.partnerName,\n  quarter: $json.quarter,\n  poaScore: $json.poaScore,\n  poaStatus: 'in_progress',\n  revenueAttainmentPct: $json.revenueAttainmentPct,\n  dealsAttainmentPct: $json.dealsAttainmentPct,\n  scoredAt: new Date().toISOString()\n} }}"
+      }
+    },
+    {
+      "id": "slack-poa-failed",
+      "name": "Slack - POA Failed",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1850, 1050],
+      "parameters": {
+        "channel": "C_YOUR_POA_CHANNEL",
+        "text": "=┌────────────────────────────────────────┐\\n🚨 *POA FAILED: {{ $json.partnerName }}*\\n├────────────────────────────────────────┤\\n📊 Score: *{{ $json.poaScore }}/100* 🚨\\n📅 Quarter: {{ $json.quarter }}\\n├────────────────────────────────────────┤\\n💰 Revenue: ${{ Number($json.revenueAttained).toLocaleString() }} / ${{ Number($json.revenueTarget).toLocaleString() }} ({{ $json.revenueAttainmentPct }}%)\\n💼 Deals: {{ $json.newDealsClosed }} / {{ $json.dealsTarget }} ({{ $json.dealsAttainmentPct }}%)\\n├────────────────────────────────────────┤\\n📌 *ESCALATING to Channel Director*\\n🔴 Partner needs Performance Improvement Plan.\\n└────────────────────────────────────────┘",
+        "jsonParameters": false,
+        "sendAsUser": "",
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "email-partner-pip",
+      "name": "Email Partner - PIP Notice",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1850, 1200],
+      "parameters": {
+        "fromEmail": "channel@example-channel.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=🚨 Performance Improvement Plan — {{ $json.partnerName }} ({{ $json.quarter }})",
+        "text": "=Dear {{ $json.partnerName }} team,\\n\\nWe are writing to inform you that your Plan of Action for {{ $json.quarter }} has scored **{{ $json.poaScore }}/100**, which falls below the minimum threshold.\\n\\n---\\nPOA ID: {{ $json.poaId }}\\nQuarter: {{ $json.quarter }}\\nScore: {{ $json.poaScore }}/100\\n\\nRevenue Attainment: {{ $json.revenueAttainmentPct }}%\\nDeals Attainment: {{ $json.dealsAttainmentPct }}%\\nMDF Utilization: {{ $json.mdfUtilizationPct }}%\\nTraining Completed: {{ $json.trainingsCompleted }}\\n---\\n\\n**Performance Improvement Plan**\\n\\nAs part of the {{ $json.partnerTier }} tier program requirements, the following actions are needed:\\n\\n1. Schedule a mandatory QBR with your channel manager within 14 days\\n2. Submit a revised POA for the next quarter with realistic, achievable targets\\n3. Complete outstanding training and certification requirements\\n4. Review MDF opportunities for co-marketing initiatives\\n\\nFailure to show measurable improvement within 60 days may affect your {{ $json.partnerTier }} tier standing.\\n\\nYour channel manager will contact you to schedule the QBR.\\n\\nSincerely,\\nChannel Operations Team\\nchannel@example-channel.com",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "email-director-escalation",
+      "name": "Email Director - POA Escalation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [2050, 1050],
+      "parameters": {
+        "fromEmail": "channel@example-channel.com",
+        "toEmail": "={{ $json.channelManagerEmail ? 'director@example-channel.com' : 'channel-director@example-channel.com' }}",
+        "subject": "=🚨 ESCALATION: POA Failed — {{ $json.partnerName }} ({{ $json.quarter }})",
+        "text": "=Hi Channel Director,\\n\\nThis is an automatic escalation notice.\\n\\n{{ $json.partnerName }} ({{ $json.partnerTier }} tier) has received a POA score of **{{ $json.poaScore }}/100** for {{ $json.quarter }}, which is below the minimum threshold.\\n\\n---\\nPartner: {{ $json.partnerName }}\\nTier: {{ $json.partnerTier }}\\nCM: {{ $json.channelManager || 'Unassigned' }}\\nPOA ID: {{ $json.poaId }}\\nPOA Score: {{ $json.poaScore }}/100\\n\\nRevenue: ${{ Number($json.revenueAttained).toLocaleString() }} of ${{ Number($json.revenueTarget).toLocaleString() }} target\\nDeals: {{ $json.newDealsClosed }} of {{ $json.dealsTarget }} target\\nTraining: {{ $json.trainingsCompleted }} completed\\n---\\n\\nA Performance Improvement Plan has been sent to the partner.\\nPlease follow up with the channel manager to ensure proper remediation.\\n\\nThis escalation was automatically triggered at {{ $json.submittedAt }}.\\n\\nChannel Operations\\nchannel@example-channel.com",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "return-score-failed",
+      "name": "Return - POA Score Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2250, 1050],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  message: 'POA score recorded: FAILED — PIP initiated and Director notified.',\n  poaId: $json.poaId,\n  partnerName: $json.partnerName,\n  quarter: $json.quarter,\n  poaScore: $json.poaScore,\n  poaStatus: 'failed_pip',\n  revenueAttainmentPct: $json.revenueAttainmentPct,\n  dealsAttainmentPct: $json.dealsAttainmentPct,\n  scoredAt: new Date().toISOString()\n} }}"
+      }
+    },
+    {
+      "id": "set-overdue-message",
+      "name": "Set - Overdue Reminder",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1250, 900],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "overdueLevel",
+              "value": "={{ $json.body.overdueDays || $json.overdueDays || $json.body.days_overdue || 30 >= 45 ? 'critical' : ($json.body.overdueDays || $json.overdueDays || $json.body.days_overdue || 30 >= 20 ? 'warning' : 'reminder') }}"
+            },
+            {
+              "name": "overdueMessage",
+              "value": "={{ 'POA ' + ($json.poaId || '') + ' for ' + ($json.partnerName || 'Unknown') + ' is overdue by ' + ($json.body.overdueDays || $json.overdueDays || $json.body.days_overdue || 'unknown') + ' days.' }}"
+            }
+          ]
+        }
+      },
+      "options": {}
+    },
+    {
+      "id": "slack-cm-overdue",
+      "name": "Slack CM - POA Overdue",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1450, 900],
+      "parameters": {
+        "channel": "C_YOUR_POA_CHANNEL",
+        "text": "=┌────────────────────────────────────────┐\\n⏰ *POA OVERDUE: {{ $json.partnerName }}*\\n├────────────────────────────────────────┤\\n📄 POA ID: {{ $json.poaId || 'N/A' }}\\n📅 Quarter: {{ $json.quarter }}\\n⏱️ Overdue: {{ $json.body.overdueDays || $json.overdueDays || 'Unknown' }} days\\n📌 Severity: {{ $json.overdueLevel }}\\n├────────────────────────────────────────┤\\n📋 {{ $json.overdueLevel === 'critical' ? '🔴 ESCALATE to Channel Director' : ($json.overdueLevel === 'warning' ? '⚠️ Contact partner this week' : '📧 Send reminder to partner') }}\\n└────────────────────────────────────────┘",
+        "jsonParameters": false,
+        "sendAsUser": "",
+        "attachments": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_SLACK_CREDENTIAL_ID",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "id": "email-partner-overdue",
+      "name": "Email Partner - POA Overdue",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1650, 900],
+      "parameters": {
+        "fromEmail": "channel@example-channel.com",
+        "toEmail": "={{ $json.partnerEmail }}",
+        "subject": "=⏰ Reminder: POA for {{ $json.quarter }} is Overdue — {{ $json.partnerName }}",
+        "text": "=Dear {{ $json.partnerName }} team,\\n\\nThis is a reminder that your Plan of Action for {{ $json.quarter }} is currently overdue.\\n\\n---\\nPOA ID: {{ $json.poaId || 'Not yet created' }}\\nQuarter: {{ $json.quarter }}\\nOverdue: {{ $json.body.overdueDays || $json.overdueDays || 'Unknown' }} days\\n---\\n\\nPlease submit your POA as soon as possible. All {{ $json.partnerTier }} tier partners are required to have an active Plan of Action on file.\\n\\n{{ $json.overdueLevel === 'critical' ? 'This is a final reminder. Continued non-compliance may impact your tier standing.' : ($json.overdueLevel === 'warning' ? 'Please submit within the next 7 business days to avoid escalation.' : '') }}\\n\\nTo submit, POST to the partner-poa webhook with action=\"submit\" and your plan details.\\n\\nBest,\\nChannel Operations Team\\nchannel@example-channel.com",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_GMAIL_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "return-overdue",
+      "name": "Return - Overdue Reminder Sent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 900],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  message: 'Overdue POA reminder sent to partner and CM.',\n  poaId: $json.poaId || 'N/A',\n  partnerName: $json.partnerName,\n  quarter: $json.quarter,\n  overdueLevel: $json.overdueLevel,\n  status: 'reminder_sent',\n  remindedAt: new Date().toISOString()\n} }}"
+    }
+  }
+  ],
+  "connections": {
+    "Webhook - POA Inbound": {
+      "main": [
+        [
+          {
+            "node": "Format POA Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format POA Data": {
+      "main": [
+        [
+          {
+            "node": "IF - Identify Action Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Identify Action Type": {
+      "main": [
+        [
+          {
+            "node": "IF - POA Completeness Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - Review or Score or Overdue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - POA Completeness Check": {
+      "main": [
+        [
+          {
+            "node": "Slack - New POA to CM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return - POA Incomplete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - New POA to CM": {
+      "main": [
+        [
+          {
+            "node": "Email CM - POA Requires Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email CM - POA Requires Review": {
+      "main": [
+        [
+          {
+            "node": "Return - POA Submitted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Review or Score or Overdue": {
+      "main": [
+        [
+          {
+            "node": "IF - Review Decision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - Score or Overdue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Review Decision": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - POA Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - Revision or Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - POA Approved": {
+      "main": [
+        [
+          {
+            "node": "Return - POA Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Revision or Rejected": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - POA Needs Revision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Partner - POA Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - POA Needs Revision": {
+      "main": [
+        [
+          {
+            "node": "Return - POA Needs Revision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - POA Rejected": {
+      "main": [
+        [
+          {
+            "node": "Return - POA Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Score or Overdue": {
+      "main": [
+        [
+          {
+            "node": "Set - Calculate POA Score",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set - Overdue Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Calculate POA Score": {
+      "main": [
+        [
+          {
+            "node": "IF - Score Threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Score Threshold": {
+      "main": [
+        [
+          {
+            "node": "Slack - POA Passed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - At Risk or Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - POA Passed": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - POA Passed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - POA Passed": {
+      "main": [
+        [
+          {
+            "node": "Return - POA Score Passed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - At Risk or Failed": {
+      "main": [
+        [
+          {
+            "node": "Slack - POA At Risk",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack - POA Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - POA At Risk": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - POA In Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - POA In Progress": {
+      "main": [
+        [
+          {
+            "node": "Return - POA Score At Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - POA Failed": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - PIP Notice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - PIP Notice": {
+      "main": [
+        [
+          {
+            "node": "Email Director - POA Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Director - POA Escalation": {
+      "main": [
+        [
+          {
+            "node": "Return - POA Score Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set - Overdue Reminder": {
+      "main": [
+        [
+          {
+            "node": "Slack CM - POA Overdue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack CM - POA Overdue": {
+      "main": [
+        [
+          {
+            "node": "Email Partner - POA Overdue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Partner - POA Overdue": {
+      "main": [
+        [
+          {
+            "node": "Return - Overdue Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Denver",
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "tags": [
+    {
+      "name": "channel"
+    },
+    {
+      "name": "poa"
+    },
+    {
+      "name": "plan-of-action"
+    },
+    {
+      "name": "lifecycle"
+    },
+    {
+      "name": "compliance"
+    }
+  ]
+}
